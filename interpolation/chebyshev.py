@@ -1,5 +1,4 @@
 import numpy as np
-import scipy as sp
 import matplotlib.pyplot as plt
 
 def chebyshev_nodes(n: int):
