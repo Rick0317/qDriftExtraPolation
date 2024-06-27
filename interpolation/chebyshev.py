@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sp
+import matplotlib.pyplot as plt
 
 def chebyshev_nodes(n: int):
     """Returns a list of n chebyshev nodes on the open interval (-1,1)
@@ -40,4 +41,10 @@ def chebyshev_barycentric_interp(x: float, n: int, f: callable):
     return numer/denom
 
 
-        
+if __name__ == '__main__':
+    n = 11
+    domain = np.linspace(-1, 1, 200)
+    f = lambda x: 1 / (1 + 25 * x ** 2)
+
+    plt.plot(domain,f(domain))
+    plt.plot(domain, [chebyshev_barycentric_interp(x, n, f) for x in domain])
