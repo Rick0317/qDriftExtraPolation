@@ -1,5 +1,5 @@
 import typing
-
+import numpy as np
 
 class DecomposedHamiltonian:
     """
@@ -7,19 +7,41 @@ class DecomposedHamiltonian:
 
     Attributes:
         sum_coeff (float): the sum of the coefficients
-        coeff_list (list): the list of coefficients
-        term_list (list): the list of terms
+        lst_coeff: the parallel list of coefficients
+        lst_Hamil: the parallel list of Hermitians
+        decomp (Dict[str, tuple[float, TensorData]]): mapping from the name of a term to the tuple of a coefficient and a Hamiltonian
     """
-    def __init__(self, sum_coeff: float,
-                 coeff_list: list[float], term_list: list[tuple]):
-        self.sum_coeff = sum_coeff
-        self.coeff_list = coeff_list
-        self.term_list = term_list
+    def __init__(self, names: list[str],
+                 coeff_list: list[float], term_list: list):
+        self.lst_coeff = coeff_list
+        self.lst_Hamil = term_list
+        self.decomp = {}
+        for i, name in enumerate(names):
+            assert name not in self.decomp, "duplicate name error"
+            self.decomp[name] = (coeff_list[i], term_list[i])
+        self.sum_coeff = np.sum(coeff_list)
 
 
-class TensorData:
+class Hamiltonian:
     """
-    The tensor data class is used to store the tensor data of Hamiltonians.
+    The unitary hamiltonian class to store its relevant properties.
+
+    decomp Dict[str, tuple(int, Hamiltonian)]: a mapping from the name of each term to the strength and the Hamiltonian that decomposes the Hamiltonian
+    """
+    decomp = None
+    
+    def __init__(self, spatial_orb: int, tensor_1d: list[tuple]):
+        super().__init__(spatial_orb, tensor_1d)
+        
+    
+    def get_decomp(self) -> DecomposedHamiltonian:
+        assert self.decomp is not None, "no decomposition found (call .decompose first)"
+        return self.decomp
+    
+
+
+class Hubbard(Hamiltonian):
+    """The Hubbard model
 
     Attributes:
         spatial_orb (int): int, spatial orbital
@@ -30,13 +52,13 @@ class TensorData:
     def __init__(self, spatial_orb: int, tensor_1d: list[tuple]):
         self.spatial_orb = spatial_orb
         self.tensor_1 = tensor_1d
-
-    def decompose(self) -> DecomposedHamiltonian:
+        
+        
+    def decompose(self, names: list[str]) -> None:
         '''
-        The decomposed Hamiltonian class to store its relevant properties.
+        Decompose this Hamiltonian object to store its relevant properties.
         By its format, the coefficient and the tensor data already satisfy
         the definition of the decomposed Hamiltonian.
-        :return: DecomposedHamiltonian object
         '''
         sum_coeff = 0
         coeff_list = []
@@ -46,20 +68,8 @@ class TensorData:
             coeff_list.append(term[-1])
             term_list.append(term[:-1])
 
-        decomposed_hamiltonian = DecomposedHamiltonian(
-            sum_coeff, coeff_list, term_list)
+        decomposed_hamiltonian = DecomposedHamiltonian(names, coeff_list, term_list)
 
-        return decomposed_hamiltonian
-
-class Hamiltonian(TensorData):
-    """
-    The unitary hamiltonian class to store its relevant properties.
-
-    decomp: Dict[str, tuple(int, Hamiltonian)], a mapping from the name of each term to the strength and the Hamiltonian that decomposes the Hamiltonian
-    """
-    def set_decomp(names:list[str], strengths:list[float], h_list:list[Hamiltonian]):
-        d = {}
-        for i, name in enumerate(names):
-            assert name not in d, "duplicate name error"
-            d[name] = (strengths[i], h_list[i])
-
+        self.decomp = decomposed_hamiltonian
+    
+    
