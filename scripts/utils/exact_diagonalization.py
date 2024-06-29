@@ -1,4 +1,4 @@
-import Utils.fermion_util.openfermion_util as of_util
+from scripts import utils as of_util
 import openfermion as of
 import numpy as np
 import scipy

@@ -22,7 +22,6 @@ def unitary_to_sparse_pauli(unitary: np.ndarray):
     operator = Operator(unitary)
     return SparsePauliOp.from_operator(operator)
 
-
 def matrix_to_sparse_pauli(tensor: np.ndarray):
     """
     Converts a matrix to sparse pauli operator
