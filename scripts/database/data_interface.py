@@ -9,6 +9,7 @@ class Tensor:
     coefficient = 0
     matrix = np.array(list())
     matrix_1d = list()
+
     def __init__(self, coefficient, matrix, matrix_1d):
         self.coefficient = coefficient
         self.matrix = matrix
@@ -21,7 +22,6 @@ class DecomposedHamiltonian:
 
     Attributes:
         sum_coeff (float): the sum of the coefficients
-        lst_coeff: the parallel list of coefficients
         lst_Hamil: the parallel list of Hermitians
         mapping (Dict[str, tuple[float, TensorData]]): mapping from the name of a term to the tuple of a coefficient and a Hamiltonian
     """
@@ -75,7 +75,6 @@ class Hamiltonian(Tensor):
         decomposed_hamiltonian = DecomposedHamiltonian(names, terms)
         self.decomp = decomposed_hamiltonian
 
-
     def get_decomp(self) -> DecomposedHamiltonian:
         assert self.decomp is not None, "no decomposition found (call .decompose first)"
         return self.decomp
@@ -96,8 +95,7 @@ class Hubbard(Hamiltonian):
         """
         Prepares the t term of the Hubbard Hamiltonian.
         :param t: The strength of the t term
-        :param spatial_orb: The number of spatial orbitals
-        :return: the t term tensor of the Hamilotnian and the 1d version of it.
+        :return: the t term tensor of the Hamiltonian and the 1d version of it.
         """
         n = self.spatial_orb
         tensor = np.zeros((2 * n, 2 * n))
@@ -118,8 +116,7 @@ class Hubbard(Hamiltonian):
     def make_u_term(self, u):
         """
         Prepares the U term of the Hubbard Hamiltonian.
-        :param u: The strength of the u term
-        :param spatial_orb: The number of spatial orbitals
+        :param u: The strength of the u term\
         :return: The u term tensor of the Hubbard Hamilotnian and the 1D array version of the tensor.
         """
         n = self.spatial_orb
@@ -150,4 +147,3 @@ class Hubbard(Hamiltonian):
         tbt = Tensor(tbt_c, tbt_m, tbt_1d)
 
         self.set_decomp(['obt', 'tbt'], [obt, tbt])
-    
