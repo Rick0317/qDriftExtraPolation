@@ -1,8 +1,6 @@
-import numpy as np
 import math
 from scipy import linalg # for exponentials of matrices
-from scipy.stats import rv_discrete
-from H_data_storage.data_interface import *
+from scripts.database.data_interface import *
 
 t = 6000
 
