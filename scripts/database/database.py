@@ -55,22 +55,5 @@ class DataManager:
         return loaded_data
 
 
-if __name__ == "__main__":
-    # create hubbard model of two spatial orbitals
-    h = Hubbard(2)
-    h.decompose(1,1) # decompose into one- and two-body terms
-    hd = h.get_decomp()
-    obt = hd.get_term('obt')
-    print(obt.matrix)
-
-    # save the hubbard model
-    data = DataManager()
-    data.save('hubbard',"h_2", h)
-
-    # load the hubbard model
-    l = data.load('hubbard',"h_2")
-    print(l.get_decomp().get_term('obt').matrix)
-
-
 
 
