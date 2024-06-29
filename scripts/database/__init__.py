@@ -1,4 +1,4 @@
-from database import *
+from scripts.database.database import *
 
 if __name__ == "__main__":
     h = Hubbard(2)  # create a Hubbard model of two spatial orbitals

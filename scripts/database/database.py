@@ -6,7 +6,7 @@ import os
 class DataManager:
     """Class that provides methods for saving and loading Hamiltonian data
     """
-    data_path = "../../data\\"
+    data_path = "..\\..\\data\\"
 
     def mksubdir(self, subdir_name: str):
         """
@@ -34,7 +34,6 @@ class DataManager:
         with open(path + ".pkl", 'wb') as f:
             pickle.dump(data, f)
         print("Data saved at " + path + ".pkl")
-
 
     def load(self, subdir, name) -> Hamiltonian:
         """
