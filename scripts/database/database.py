@@ -6,7 +6,9 @@ import os
 class DataManager:
     """Class that provides methods for saving and loading Hamiltonian data
     """
-    data_path = "..\\..\\data\\"
+    data_path = "../data/"
+    def __init__(self, data_path):
+        self.data_path = data_path
 
     def mksubdir(self, subdir_name: str):
         """
