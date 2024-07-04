@@ -27,9 +27,9 @@ class HamiltonianSampling:
 
 def qdrift(hubbard: Hubbard, epsilon: float):
     """The qDrift protocol. The variable names follow the definition in the "Random Compiler for Fast Hamiltonian Simulation" paper.
-    
+
     :param hubbard: A Hubbard hamiltonian
-    :param sample: the classicaloracle function SAMPLE() 
+    :param sample: the classicaloracle function SAMPLE()
     :param epsilon: target precision
     :return: v_list: a list of sampled unitaries of the exponential form
     """
@@ -47,7 +47,7 @@ def qdrift(hubbard: Hubbard, epsilon: float):
 
 
 if __name__ == "__main__":
-    data = DataManager()  # Create DataManager instance
+    data = DataManager("../../data")  # Create DataManager instance
 
     ld = data.load('hubbard', "h_2")  # load the hubbard model
     v = qdrift(ld, 0.01)
