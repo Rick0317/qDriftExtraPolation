@@ -59,7 +59,7 @@ def manual_phase_estimation(num_eval_qubits, unitary, state_qubits, state_prep):
     unitary_circuit = UnitaryGate(unitary)
     controlled_u = unitary_circuit.control(1)
     t = num_eval_qubits
-    qpe = QuantumCircuit(t + state_qubits, 3)
+    qpe = QuantumCircuit(t + state_qubits, num_eval_qubits)
     qpe.append(state_prep, [t + i for i in range(state_qubits)])
     for qubit in range(t):
         qpe.h(qubit)
@@ -73,9 +73,9 @@ def manual_phase_estimation(num_eval_qubits, unitary, state_qubits, state_prep):
 
     myQft = QFT(num_qubits=t, do_swaps=True, inverse=True, insert_barriers=True,
                 name="myQFT")
-    qpe.append(myQft, [0, 1, 2])
+    qpe.append(myQft, range(num_eval_qubits))
 
-    for n in range(3):
+    for n in range(num_eval_qubits):
         qpe.measure(n, n)
 
     qpe.draw()
