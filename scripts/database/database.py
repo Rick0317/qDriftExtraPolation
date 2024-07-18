@@ -28,7 +28,7 @@ class DataManager:
             subdir: the name of the subdirectory under the data folder in which the data is to be saved
             name: the name of the file to be saved
         """
-        path = os.path.join(DataManager.data_path, subdir)
+        path = os.path.join(self.data_path, subdir)
         if not os.path.exists(path):
             self.mksubdir(subdir)
         assert os.path.exists(path), 'the path "{}" cannot be found'.format(path)
@@ -46,7 +46,7 @@ class DataManager:
         Returns:
             the Hamiltonian object loaded from the file
         """
-        path = os.path.join(DataManager.data_path, subdir, name + '.pkl')
+        path = os.path.join(self.data_path, subdir + "/", name + '.pkl')
         assert os.path.isfile(path), 'the file "{}" cannot be found'.format(path)
 
         with open(path, "rb") as f:
