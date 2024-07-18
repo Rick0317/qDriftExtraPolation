@@ -57,7 +57,7 @@ def iterative_phase_estimation(U: Union[UnitaryGate, np.array],
         transp_qc = transpile(qc, backend=backend)
         job = backend.run(transp_qc, shots=1)
         result = job.result().get_counts()
-        print(result)
+        # print(result)
         # Check if the control qubit was measured to be 0
         if '0' in result:
             num_zeros += result['0']
