@@ -1,4 +1,6 @@
 import math
+
+from numpy import ndarray
 from scipy import linalg  # for exponentials of matrices
 
 from scripts.database import DataManager
@@ -17,15 +19,15 @@ class HamiltonianSampling:
     def __init__(self, h: Hamiltonian):
         self.h = h
         decomp = h.get_decomp()
-        lm = decomp.sum_coeff
+        lm = decomp.sum_abs_coeff
         lst_term = decomp.lst_Hamil
-        self.pk = [lst_term[i].coefficient / lm for i in range(len(lst_term))]
+        self.pk = [np.abs(lst_term[i].coefficient) / lm for i in range(len(lst_term))]
 
     def sample(self) -> Tensor:
         return np.random.choice(np.array(self.h.get_decomp().lst_Hamil), p=self.pk)
 
 
-def qdrift(hubbard: Hubbard, epsilon: float):
+def qdrift(hubbard: Hamiltonian, N:int) -> tuple[list[ndarray], list[ndarray]]:
     """The qDrift protocol. The variable names follow the definition in the "Random Compiler for Fast Hamiltonian Simulation" paper.
 
     :param hubbard: A Hubbard hamiltonian
@@ -35,20 +37,21 @@ def qdrift(hubbard: Hubbard, epsilon: float):
     """
     sample = HamiltonianSampling(hubbard).sample
     lm = hubbard.get_decomp().sum_coeff
-    N = math.ceil(2 * (lm ** 2) * (t ** 2) / epsilon)
+    # N = math.ceil(2 * (lm ** 2) * (t ** 2) / epsilon)
     i = 0
     v_list = []
+    h_list = []
     while i < N:
         i = i + 1
         j = sample()
+        h_list.append(j.matrix)
         v_list.append(linalg.expm(1j * lm * t * j.matrix / N))
 
-    return v_list
+    return h_list, v_list
 
 
 if __name__ == "__main__":
     data = DataManager("../../data")  # Create DataManager instance
-
     ld = data.load('hubbard', "h_2")  # load the hubbard model
     v = qdrift(ld, 0.01)
 
