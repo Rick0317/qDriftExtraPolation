@@ -28,12 +28,14 @@ class DecomposedHamiltonian:
 
     def __init__(self, names: list[str], term_list: list[Tensor]):
         self.sum_coeff = 0
+        self.sum_abs_coeff = 0
         self.lst_Hamil = term_list
         self.mapping = {}
         for i, name in enumerate(names):
             assert name not in self.mapping, "duplicate name error"
             self.mapping[name] = (term_list[i])
             self.sum_coeff += term_list[i].coefficient
+            self.sum_abs_coeff += np.abs(term_list[i].coefficient)
 
     def get_term(self, name: str) -> Tensor:
         """Return the Hamiltonian term corresponding to the name
@@ -121,7 +123,7 @@ class Hubbard(Hamiltonian):
         one_body_1d = []
         for i in range(n - 1):
             tensor[2 * i + 2, 2 * i] = -t
-            tensor[2 * i + 3, 2 * i + 1] = t
+            tensor[2 * i + 3, 2 * i + 1] = -t
             tensor[2 * i, 2 * i + 2] = -t
             tensor[2 * i + 1, 2 * i + 3] = -t
             one_body_1d.append((2 * i + 2, 2 * i, -t))

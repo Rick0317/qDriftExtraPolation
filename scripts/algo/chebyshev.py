@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def chebyshev_nodes(n: int):
     """Returns a list of n chebyshev nodes on the open interval (-1,1)
 
@@ -24,7 +25,7 @@ def chebyshev_barycentric_weight(j: int, n: int):
     return (-1) ** j * np.sin((2 * j + 1) * np.pi / (2 * n))
 
 
-def chebyshev_barycentric_interp(x: float, n: int, f: callable):
+def chebyshev_barycentric_interp_func(x: float, n: int, f: callable):
     """Returns the value of barycentric interpolation at x using n Chebyshev nodes
 
     :param x (float): a point where the terms are evaluated
@@ -40,10 +41,26 @@ def chebyshev_barycentric_interp(x: float, n: int, f: callable):
     return numer/denom
 
 
+def chebyshev_barycentric_interp_point(x: float, n: int, y:list[float]):
+    """Returns the value of barycentric interpolation at x using n Chebyshev nodes
+
+    :param x (float): a point where the terms are evaluated
+    :param n (int): a number of the Chebyshev nodes
+    :param y (list[float]): a list of data points that is to be interpolated
+    """
+    nodes = chebyshev_nodes(n)
+    terms = [chebyshev_barycentric_weight(j, n)/(x - nodes[j]) for j in range(n)]
+    denom = np.sum(terms)
+    for i in range(len(terms)):
+        terms[i] = terms[i] * y[i]
+    numer = np.sum(terms)
+    return numer/denom
+
+
 if __name__ == '__main__':
     n = 11
     domain = np.linspace(-1, 1, 200)
     f = lambda x: 1 / (1 + 25 * x ** 2)
 
     plt.plot(domain,f(domain))
-    plt.plot(domain, [chebyshev_barycentric_interp(x, n, f) for x in domain])
+    plt.plot(domain, [chebyshev_barycentric_interp_func(x, n, f) for x in domain])
