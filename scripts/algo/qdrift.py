@@ -25,7 +25,7 @@ class HamiltonianSampling:
         return np.random.choice(np.array(self.h.get_decomp().lst_Hamil), p=self.pk)
 
 
-def qdrift(hubbard: Hamiltonian, N:int, time:float) -> tuple[list[ndarray], list[ndarray]]:
+def qdrift(hubbard: Hamiltonian, N:int, t:float) -> tuple[list[ndarray], list[ndarray]]:
     """The qDrift protocol. The variable names follow the definition in the "Random Compiler for Fast Hamiltonian Simulation" paper.
 
     :param hubbard: A Hubbard hamiltonian
@@ -43,7 +43,7 @@ def qdrift(hubbard: Hamiltonian, N:int, time:float) -> tuple[list[ndarray], list
         i = i + 1
         j = sample()
         h_list.append(j.matrix)
-        v_list.append(linalg.expm(1j * lm * time * j.matrix / N))
+        v_list.append(linalg.expm(1j * lm * tg * j.matrix / N))
 
     return h_list, v_list
 
