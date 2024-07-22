@@ -6,8 +6,6 @@ from scipy import linalg  # for exponentials of matrices
 from scripts.database import DataManager
 from scripts.database.data_interface import *
 
-t = 1
-
 
 class HamiltonianSampling:
     """This class contains methods for sampling protocol given Hamiltonian
@@ -27,7 +25,7 @@ class HamiltonianSampling:
         return np.random.choice(np.array(self.h.get_decomp().lst_Hamil), p=self.pk)
 
 
-def qdrift(hubbard: Hamiltonian, N:int) -> tuple[list[ndarray], list[ndarray]]:
+def qdrift(hubbard: Hamiltonian, N:int, time:float) -> tuple[list[ndarray], list[ndarray]]:
     """The qDrift protocol. The variable names follow the definition in the "Random Compiler for Fast Hamiltonian Simulation" paper.
 
     :param hubbard: A Hubbard hamiltonian
@@ -45,7 +43,7 @@ def qdrift(hubbard: Hamiltonian, N:int) -> tuple[list[ndarray], list[ndarray]]:
         i = i + 1
         j = sample()
         h_list.append(j.matrix)
-        v_list.append(linalg.expm(1j * lm * t * j.matrix / N))
+        v_list.append(linalg.expm(1j * lm * time * j.matrix / N))
 
     return h_list, v_list
 
