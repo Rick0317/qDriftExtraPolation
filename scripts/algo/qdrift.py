@@ -43,7 +43,7 @@ def qdrift(hubbard: Hamiltonian, N:int, t:float) -> tuple[list[ndarray], list[nd
         i = i + 1
         j = sample()
         h_list.append(j.matrix)
-        v_list.append(linalg.expm(1j * lm * tg * j.matrix / N))
+        v_list.append(linalg.expm(1j * lm * t * j.matrix / N))
 
     return h_list, v_list
 
