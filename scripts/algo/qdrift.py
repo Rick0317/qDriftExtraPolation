@@ -25,32 +25,30 @@ class HamiltonianSampling:
         return np.random.choice(np.array(self.h.get_decomp().lst_Hamil), p=self.pk)
 
 
-def qdrift(hubbard: Hamiltonian, N:int, t:float) -> tuple[list[ndarray], list[ndarray]]:
-    """The qDrift protocol. The variable names follow the definition in the "Random Compiler for Fast Hamiltonian Simulation" paper.
+class QDrift:
+    def __init__(self, h: Hamiltonian, t):
+        self.h = h
+        self.t = t
+        self.sample = HamiltonianSampling(h).sample
 
-    :param hubbard: A Hubbard hamiltonian
-    :param sample: the classicaloracle function SAMPLE()
-    :param epsilon: target precision
-    :return: v_list: a list of sampled unitaries of the exponential form
-    """
-    sample = HamiltonianSampling(hubbard).sample
-    lm = hubbard.get_decomp().sum_coeff
-    # N = math.ceil(2 * (lm ** 2) * (t ** 2) / epsilon)
-    i = 0
-    v_list = []
-    h_list = []
-    while i < N:
-        i = i + 1
-        j = sample()
-        h_list.append(j.matrix)
-        v_list.append(linalg.expm(1j * lm * tg * j.matrix / N))
+    def qdrift(self, N:int) -> tuple[list[ndarray], list[ndarray]]:
+        """The qDrift protocol. The variable names follow the definition in the "Random Compiler for Fast Hamiltonian Simulation" paper.
 
-    return h_list, v_list
+        :param hubbard: A Hubbard hamiltonian
+        :param sample: the classicaloracle function SAMPLE()
+        :param epsilon: target precision
+        :return: v_list: a list of sampled unitaries of the exponential form
+        """
+        lm = self.h.get_decomp().sum_coeff
+        # N = math.ceil(2 * (lm ** 2) * (t ** 2) / epsilon)
+        i = 0
+        v_list = []
+        h_list = []
+        while i < N:
+            i = i + 1
+            j = self.sample()
+            h_list.append(j.matrix)
+            v_list.append(linalg.expm(1j * lm * self.t * j.matrix / N))
 
+        return h_list, v_list
 
-if __name__ == "__main__":
-    data = DataManager("../../data")  # Create DataManager instance
-    ld = data.load('hubbard', "h_2")  # load the hubbard model
-    v = qdrift(ld, 0.01)
-
-    print(v)
