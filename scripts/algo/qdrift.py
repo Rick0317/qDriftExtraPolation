@@ -47,8 +47,8 @@ class QDrift:
         while i < N:
             i = i + 1
             j = self.sample()
-            h_list.append(j.matrix)
-            v_list.append(linalg.expm(1j * lm * self.t * j.matrix / N))
+            h_list.append(j.matrix * j.coefficient)
+            v_list.append(linalg.expm(1j * lm * self.t * j.matrix * j.coefficient / N))
 
         return h_list, v_list
 
