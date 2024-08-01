@@ -91,7 +91,6 @@ def iterative_phase_estimation_v2(U: Union[UnitaryGate, np.array],
         eigenstate_circuit = QuantumCircuit(num_qubits, name='eigenstate')
         # the eigenstate is a vector of complex numbers that determine the state of the qubits other than the control qubit
         eigenstate_circuit.initialize(eigenstate)
-
     else:
         eigenstate_circuit = eigenstate
 
