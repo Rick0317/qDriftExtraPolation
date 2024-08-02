@@ -14,6 +14,12 @@ class Tensor:
         self.coefficient = coefficient
         self.matrix = matrix
         self.matrix_1d = matrix_1d
+    
+    def __repr__(self) -> str:
+        return f"Tensor({self.coefficient}, {self.matrix}, {self.matrix_1d})"
+    
+    def __str__(self) -> str:
+        return f"Tensor({self.coefficient}, {self.matrix}, {self.matrix_1d})"
 
 
 class DecomposedHamiltonian:
@@ -47,6 +53,12 @@ class DecomposedHamiltonian:
         """
         if name in self.mapping:
             return self.mapping[name]
+        
+    def __repr__(self) -> str:
+        return f"DecomposedHamiltonian({self.sum_coeff}, {self.lst_Hamil}, {self.mapping})"
+    
+    def __str__(self) -> str:
+        return f"DecomposedHamiltonian({self.sum_coeff}, {self.lst_Hamil}, {self.mapping})"
 
 
 class Hamiltonian(Tensor):
@@ -80,6 +92,12 @@ class Hamiltonian(Tensor):
     def get_decomp(self) -> DecomposedHamiltonian:
         assert self.decomp is not None, "no decomposition found (call .decompose first)"
         return self.decomp
+    
+    def __repr__(self) -> str:
+        return f"Hamiltonian({self.coefficient}, {self.matrix}, {self.matrix_1d})"
+    
+    def __str__(self) -> str:
+        return f"Hamiltonian({self.coefficient}, {self.matrix}, {self.matrix_1d})"
 
 
 class Hubbard(Hamiltonian):
