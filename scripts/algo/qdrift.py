@@ -35,7 +35,7 @@ class QDrift:
         """The qDrift protocol. The variable names follow the definition in the "Random Compiler for Fast Hamiltonian Simulation" paper.
 
         :param hubbard: A Hubbard hamiltonian
-        :param sample: the classicaloracle function SAMPLE()
+        :param sample: the classical oracle function SAMPLE()
         :param epsilon: target precision
         :return: v_list: a list of sampled unitaries of the exponential form
         """
