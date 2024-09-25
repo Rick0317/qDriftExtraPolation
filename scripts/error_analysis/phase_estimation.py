@@ -39,6 +39,14 @@ def probability_of_estimation_error(delta, n):
     # P [ˆθ − θ ≥ δ ] ≤ 2e^{−2nδ^2}
     # returns upper bound for probability that the estimation error is greater than delta
     return 2 * np.exp(-2 * n * delta**2)
+
+def upper_bound_linear(p0, delta):
+    # returns upper bound on the error in phase estimation given the error in p0 estimation
+    return delta / np.sqrt(p0 - 3*p0**2) if p0 - 3*p0**2 > 0 else np.inf
+
+def upper_bound_nonlinear(p0, delta):
+    # returns upper bound on the error in phase estimation given the error in p0 estimation
+    return delta / np.sqrt(-(p0 + delta - 1) * (p0 + delta )) if -(p0 + delta - 1) * (p0 + delta ) > 0 else np.inf
         
 if __name__ == "__main__":
 
@@ -52,6 +60,7 @@ if __name__ == "__main__":
         PHASE_ESTIMATION_MEAUREMENTS = i
         all_p0_estimation_errors = []
         fig = go.Figure()
+        phase_error_plot = go.Figure()
 
         for i, test_hermitian in tqdm.tqdm(enumerate(random_hermitians), desc='Running phase estimation on random Hermitian matrices', total=NUM_RAND_MATRICES):
 
@@ -78,24 +87,19 @@ if __name__ == "__main__":
             num_bins = 100
             bin_edges = np.linspace(0, 1, num_bins + 1)
 
-            # Manually bin the data
+            # Manually bin the data and normalize the bin counts with respect to the most frequent bin
             hist, bin_edges = np.histogram(p0_estimation_errors, bins=bin_edges)
-
-            # Normalize the bin counts with respect to the most frequent bin
             max_count = np.max(hist)
             relative_freq = hist / max_count
-
-            # Add the bar plot for this matrix
             fig.add_trace(go.Bar(x=bin_edges[:-1], y=relative_freq, name=f'Matrix {i + 1}'))
 
-            print(f'Hermitian matrix {i + 1} / {NUM_RAND_MATRICES}:\n{test_hermitian} \nAverage estimation error: {np.mean(estimation_errors)}\n\n')
-            all_estimation_errors[i] = estimation_errors
+            # now, plot error in estimated eigenvalues vs error in estimated p_0
+            phase_error_plot.add_trace(go.Scatter(x=estimation_errors, y=p0_estimation_errors, mode='markers', name=f'Matrix {i + 1}'))
+
             
-        # Generate data for the function
+        # Generate data for the function that upperbound p0 error
         delta_values = np.linspace(-0.00001, 1, 100)
         prob_values = probability_of_estimation_error(delta_values, n=PHASE_ESTIMATION_MEAUREMENTS)
-
-        # Add the function plot
         fig.add_trace(go.Scatter(x=delta_values, y=prob_values, mode='lines', name='Probability of Estimation Error'))
         
 
@@ -127,6 +131,19 @@ if __name__ == "__main__":
         # Save the plot as a png
         fig.write_image(f'p0_estimation_errors_{PHASE_ESTIMATION_MEAUREMENTS}.png')
         fig.show()
+
+        # generate plot for error in estimated eigenvalues vs error in estimated p_0
+        phase_error_plot.update_layout(
+            title=f'Error in estimated eigenvalues vs error in estimated p_0 for PHASE_ESTIMATION_MEASUREMENTS = {PHASE_ESTIMATION_MEAUREMENTS}',
+            xaxis_title='Error in estimated eigenvalues',
+            yaxis_title='Error in estimated p_0',
+        )
+        phase_error_plot.write_image(f'phase_error_plot_{PHASE_ESTIMATION_MEAUREMENTS}.png')
+        phase_error_plot.show()
+        
+        # also show both analytical bounds
+        # upper_bounds_linear = [upper_bound_linear(og_p0, delta) for delta, og_p0 in zip(delta_values, prob_values)]
+
 
 
 
