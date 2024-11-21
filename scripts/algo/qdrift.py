@@ -6,6 +6,8 @@ from scipy import linalg  # for exponentials of matrices
 from scripts.database import DataManager
 from scripts.database.data_interface import *
 
+t = 0.1
+
 
 class HamiltonianSampling:
     """This class contains methods for sampling protocol given Hamiltonian
