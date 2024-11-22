@@ -14,6 +14,12 @@ class Tensor:
         self.coefficient = coefficient
         self.matrix = matrix
         self.matrix_1d = matrix_1d
+    
+    def __repr__(self) -> str:
+        return f"Tensor({self.coefficient}, {self.matrix}, {self.matrix_1d})"
+    
+    def __str__(self) -> str:
+        return f"Tensor({self.coefficient}, {self.matrix}, {self.matrix_1d})"
 
 
 class DecomposedHamiltonian:
@@ -28,12 +34,14 @@ class DecomposedHamiltonian:
 
     def __init__(self, names: list[str], term_list: list[Tensor]):
         self.sum_coeff = 0
+        self.sum_abs_coeff = 0
         self.lst_Hamil = term_list
         self.mapping = {}
         for i, name in enumerate(names):
             assert name not in self.mapping, "duplicate name error"
             self.mapping[name] = (term_list[i])
             self.sum_coeff += term_list[i].coefficient
+            self.sum_abs_coeff += np.abs(term_list[i].coefficient)
 
     def get_term(self, name: str) -> Tensor:
         """Return the Hamiltonian term corresponding to the name
@@ -45,6 +53,12 @@ class DecomposedHamiltonian:
         """
         if name in self.mapping:
             return self.mapping[name]
+        
+    def __repr__(self) -> str:
+        return f"DecomposedHamiltonian({self.sum_coeff}, {self.lst_Hamil}, {self.mapping})"
+    
+    def __str__(self) -> str:
+        return f"DecomposedHamiltonian({self.sum_coeff}, {self.lst_Hamil}, {self.mapping})"
 
 
 class Hamiltonian(Tensor):
@@ -78,6 +92,12 @@ class Hamiltonian(Tensor):
     def get_decomp(self) -> DecomposedHamiltonian:
         assert self.decomp is not None, "no decomposition found (call .decompose first)"
         return self.decomp
+    
+    def __repr__(self) -> str:
+        return f"Hamiltonian({self.coefficient}, {self.matrix}, {self.matrix_1d})"
+    
+    def __str__(self) -> str:
+        return f"Hamiltonian({self.coefficient}, {self.matrix}, {self.matrix_1d})"
 
 
 class Hubbard(Hamiltonian):
@@ -102,10 +122,10 @@ class Hubbard(Hamiltonian):
 
         one_body_1d = []
         for p in range(n - 1):
-            tensor[p+1, p] = -t
-            tensor[p, p+1] = -t
-            one_body_1d.append((p+1, p, -t))
-            one_body_1d.append((p, p+1, -t))
+            tensor[p+1, p] = 1
+            tensor[p, p+1] = 1
+            one_body_1d.append((p+1, p, 1))
+            one_body_1d.append((p, p+1, 1))
 
         return tensor, one_body_1d, -t
 
@@ -120,14 +140,14 @@ class Hubbard(Hamiltonian):
 
         one_body_1d = []
         for i in range(n - 1):
-            tensor[2 * i + 2, 2 * i] = -t
-            tensor[2 * i + 3, 2 * i + 1] = t
-            tensor[2 * i, 2 * i + 2] = -t
-            tensor[2 * i + 1, 2 * i + 3] = -t
-            one_body_1d.append((2 * i + 2, 2 * i, -t))
-            one_body_1d.append((2 * i + 3, 2 * i + 1, -t))
-            one_body_1d.append((2 * i, 2 * i + 2, -t))
-            one_body_1d.append((2 * i + 1, 2 * i + 3, -t))
+            tensor[2 * i + 2, 2 * i] = 1
+            tensor[2 * i + 3, 2 * i + 1] = 1
+            tensor[2 * i, 2 * i + 2] = 1
+            tensor[2 * i + 1, 2 * i + 3] = 1
+            one_body_1d.append((2 * i + 2, 2 * i, 1))
+            one_body_1d.append((2 * i + 3, 2 * i + 1, 1))
+            one_body_1d.append((2 * i, 2 * i + 2, 1))
+            one_body_1d.append((2 * i + 1, 2 * i + 3, 1))
 
         return tensor, one_body_1d, -t
 
@@ -142,8 +162,8 @@ class Hubbard(Hamiltonian):
 
         two_body_1d = []
         for p in range(n):
-            tensor[p, p] = u
-            two_body_1d.append((p, p, u))
+            tensor[p, p] = 1
+            two_body_1d.append((p, p, 1))
 
         return tensor, two_body_1d, u
 
@@ -158,8 +178,8 @@ class Hubbard(Hamiltonian):
 
         two_body_1d = []
         for p in range(n):
-            tensor[2 * p, 2 * p, 2 * p + 1, 2 * p + 1] = u
-            two_body_1d.append((2 * p, 2 * p, 2 * p + 1, 2 * p + 1, u))
+            tensor[2 * p, 2 * p, 2 * p + 1, 2 * p + 1] = 1
+            two_body_1d.append((2 * p, 2 * p, 2 * p + 1, 2 * p + 1, 1))
 
         return tensor, two_body_1d, u
 
