@@ -69,7 +69,8 @@ def iterative_phase_estimation_v2(U: Union[UnitaryGate, np.array],
                                num_evals: int, 
                                eigenstate: Optional[Union[QuantumCircuit, np.array]],
                                backend,
-                               num_qubits=1) -> float:
+                               num_qubits=1,
+                               print_results=False) -> float:
     '''
     This function is a modified version of the iterative_phase_estimation function that uses the Qiskit Runtime Service'''
     
@@ -108,7 +109,8 @@ def iterative_phase_estimation_v2(U: Union[UnitaryGate, np.array],
     num_zeros = 0
     result = job.result()
     counts = result.get_counts()
-    print(counts)
+    if print_results:
+        print(counts)
     if '0' in counts:
         num_zeros = counts['0']
     tot = sum(counts.values())
