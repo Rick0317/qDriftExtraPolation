@@ -15,12 +15,19 @@ import scipy
 import scipy.linalg
 
 
-def babys_first_qpe(U: Union[UnitaryGate, np.array], 
-                               num_evals: int, 
+def babys_first_qpe(U: Union[UnitaryGate, np.array],
                                eigenstate: Optional[Union[QuantumCircuit, np.array]],
-                               backend,
-                               num_qubits=1,
-                               print_results=False) -> QuantumCircuit:
+                               num_qubits=1) -> QuantumCircuit:
+    """
+    Return the quantum circuit of the baby's first QPE algorithm.
+    Args:
+        U: Unitary matrix
+        eigenstate: the eigenstate of U
+        num_qubits: the number of qubits in the circuit
+
+    Returns:
+        The quantum circuit that implements the baby's first QPE algorithm.
+    """
     # Data type management:
     # Convert U to a gate if it's a numpy array
     if isinstance(U, np.ndarray):
@@ -102,7 +109,7 @@ def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate):
         # eigenstate = eigenvectors[:, np.argmin(exact_eigenvalue)] # this is kinda arbitray
 
         v_lst.append(v)
-        qc = babys_first_qpe(v, num_evals=1, eigenstate=eigenstate, backend=backend)
+        qc = babys_first_qpe(v, eigenstate=eigenstate)
 
         # simulate the circuit
         job = backend.run(transpile(qc, backend), shots=1)
@@ -133,7 +140,6 @@ if __name__ == "__main__":
         eigenvalues, eigenvectors = scipy.linalg.eig(H)
 
     eigenstate = eigenvectors[:, np.argmin(eigenvalues)] # for small eigenvalue
-
 
     print("Random Hamiltonian:")
     print(H)
