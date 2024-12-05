@@ -55,8 +55,15 @@ def babys_first_qpe(U: Union[UnitaryGate, np.array],
     return qc
 
 
-
 def generate_random_hamiltonian(num_qubits, num_terms):
+    """
+    Return an array of random hamiltonian terms
+    Args:
+        num_qubits: number of qubits
+        num_terms: number of hamiltonian terms to generate
+
+    Returns: an array of random hamiltonian terms
+    """
     # Generate a random Pauli string
     pauli_matrices = [Pauli('X'), Pauli('Y'), Pauli('Z'), Pauli('I')]
     hamiltonian_terms = []
@@ -65,12 +72,14 @@ def generate_random_hamiltonian(num_qubits, num_terms):
         hamiltonian_terms.append((random.uniform(-1, 1), pauli_string))
     return hamiltonian_terms
 
+
 def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate):
-    '''
+    """
     For j = 1 to N_samples:
         draw H_j randomly
         ...
-    '''
+    """
+
     for term in hamiltonian_terms:
         assert isinstance(term[1], Pauli)
 
@@ -105,7 +114,6 @@ def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate):
             results.append(1)
 
     return results, v_lst
-
 
 
 if __name__ == "__main__":
