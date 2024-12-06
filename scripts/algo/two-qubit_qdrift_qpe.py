@@ -1,6 +1,3 @@
-# This is totally reinventing the wheel btw; I did not use the API we had previously defined, but it's a good start
-
-# Baby's first phase estimation + qDRIFT
 from qiskit.quantum_info import Pauli
 from qiskit import QuantumCircuit, transpile
 from qiskit.circuit.library import UnitaryGate
@@ -13,14 +10,15 @@ import numpy as np
 from qiskit import QuantumCircuit
 import scipy
 import scipy.linalg
-import csv
 import os
+import csv
+
 
 def babys_first_qpe(U: Union[UnitaryGate, np.array],
                     num_evals: int,
                     eigenstate: Optional[Union[QuantumCircuit, np.array]],
                     backend,
-                    num_qubits=1,
+                    num_qubits=2,
                     print_results=False) -> QuantumCircuit:
     # Data type management:
     # Convert U to a gate if it's a numpy array
@@ -70,12 +68,13 @@ def generate_random_hamiltonian(num_qubits, num_terms):
         hamiltonian_terms.append((random.uniform(0, 1), pauli_string))
     return hamiltonian_terms
 
+
 def test_qpe():
     print("Test QPE")
     coeff = random.uniform(0, 1)
-    H = coeff * Pauli(('Z')).to_matrix()
+    H = coeff * (Pauli(('Z')).tensor(Pauli('Z'))).to_matrix()
 
-    eigenvalues, eigenvectors = scipy.linalg.eig(H)
+    eigenvalues, eigenvectors = scipy.linalg.eigh(H)
 
     eigenstate = eigenvectors[:, np.argmin(eigenvalues)]  # for small eigenvalue
 
@@ -84,7 +83,7 @@ def test_qpe():
 
     tau = coeff
 
-    v = scipy.linalg.expm(-1j * tau * Pauli(('Z')).to_matrix())
+    v = scipy.linalg.expm(1j * tau * (Pauli(('Z')).tensor(Pauli('Z'))).to_matrix())
 
     backend = Aer.get_backend('qasm_simulator')
 
@@ -104,12 +103,11 @@ def test_qpe():
     print(f"Estimated phase: {phase}")
 
 
-
 def test_babys_first_qpe():
 
     print("Test iterative qpe:")
     coeff = random.uniform(0, 1)
-    H = coeff * Pauli(('Z')).to_matrix()
+    H = coeff * (Pauli(('Z')).tensor(Pauli('Z'))).to_matrix()
 
     eigenvalues, eigenvectors = scipy.linalg.eigh(H)
 
@@ -122,7 +120,7 @@ def test_babys_first_qpe():
 
     tau = time * coeff / num_samples
 
-    v = scipy.linalg.expm(1j * tau * Pauli(('Z')).to_matrix())
+    v = scipy.linalg.expm(1j * tau * (Pauli(('Z')).tensor(Pauli('Z'))).to_matrix())
 
     backend = Aer.get_backend('qasm_simulator')
     results = []
@@ -136,32 +134,26 @@ def test_babys_first_qpe():
         job = backend.run(transpile(qc, backend), shots=shots)
         result = job.result()
         counts = result.get_counts()
-        # results.append(2 * np.arccos(np.sqrt(counts['0']/shots)))
         results.append(np.arcsin(1 - 2 * counts['0'] / shots))
-        # if "0" in counts and counts["0"] > 0:
-        #     results.append(0)
-        # elif "1" in counts and counts["1"] > 0:
-        #     results.append(1)
 
     estimated_eig = sum(results)
 
     print(f"Estimated eigenvalue: {estimated_eig}")
-
 
 def test_qDrift_channel():
 
     print("Test qDrift Channel:")
     coeff1 = random.uniform(0, 1)
     coeff2 = random.uniform(0, 1)
-    H = coeff1 * Pauli(('Z')).to_matrix() + coeff2 * Pauli(('X')).to_matrix()
+    H = coeff1 * (Pauli(('Z')).tensor(Pauli(('X')))).to_matrix() + coeff2 * (Pauli(('X')).tensor(Pauli(('I')))).to_matrix()
 
     eigenvalues, eigenvectors = scipy.linalg.eigh(H)
 
     eigenstate = eigenvectors[:, np.argmin(eigenvalues)]  # for small eigenvalue
     print(f"Correct eigenvalue: {eigenvalues[0]}")
-    print(f"Coeffs for (Z, X) : {coeff1}, {coeff2}")
+    print(f"Coeffs for (ZX, XI) : {coeff1}, {coeff2}")
 
-    hamil_list = [Pauli(('Z')), Pauli(('X'))]
+    hamil_list = [(Pauli(('Z')).tensor(Pauli(('X')))), (Pauli(('X')).tensor(Pauli(('I'))))]
 
 
     num_samples = 100
@@ -174,58 +166,6 @@ def test_qDrift_channel():
     for i in range(num_samples):
 
         j = random.choices(range(2), weights=[abs(coeff1), abs(coeff2)],
-                           k=1)[0]
-        tau = time * lam / num_samples
-        h_j = hamil_list[j]
-        v = scipy.linalg.expm(1j * tau * h_j.to_matrix())
-        qc = babys_first_qpe(v, num_evals=1, eigenstate=eigenstate,
-                             backend=backend)
-
-        shots = 4096 * 128
-
-        # simulate the circuit
-        job = backend.run(transpile(qc, backend), shots=shots)
-        result = job.result()
-        counts = result.get_counts()
-        results.append(np.arcsin(1 - 2 * counts['0'] / shots))
-        # results.append(2 * np.arccos(np.sqrt(counts['0'] / shots)))
-        # if "0" in counts and counts["0"] > 0:
-        #     results.append(0)
-        # elif "1" in counts and counts["1"] > 0:
-        #     results.append(1)
-
-    estimated_eig = sum(results)
-
-    print(f"Estimated eigenvalue: {estimated_eig}")
-
-
-def test_qDrift_channel_ver2():
-
-    print("Test qDrift Channel:")
-    coeff1 = random.uniform(0, 1)
-    coeff2 = random.uniform(0, 1)
-    coeff3 = random.uniform(0, 1)
-    H = coeff1 * Pauli(('Z')).to_matrix() + coeff2 * Pauli(('X')).to_matrix() + coeff3 * Pauli(('I')).to_matrix()
-
-    eigenvalues, eigenvectors = scipy.linalg.eigh(H)
-
-    eigenstate = eigenvectors[:, np.argmin(eigenvalues)]  # for small eigenvalue
-    print(f"Correct eigenvalue: {eigenvalues[0]}")
-    print(f"Coeffs for (Z, X, I) : {coeff1}, {coeff2}, {coeff3}")
-
-    hamil_list = [Pauli(('Z')), Pauli(('X')), Pauli(('I'))]
-
-
-    num_samples = 300
-    time = 1
-    lam = coeff1 + coeff2 + coeff3
-
-
-    backend = Aer.get_backend('qasm_simulator')
-    results = []
-    for i in range(num_samples):
-
-        j = random.choices(range(3), weights=[abs(coeff1), abs(coeff2), abs(coeff3)],
                            k=1)[0]
         tau = time * lam / num_samples
         h_j = hamil_list[j]
@@ -255,12 +195,14 @@ def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate):
     for term in hamiltonian_terms:
         assert isinstance(term[1], Pauli)
 
-    l = sum(abs(term[0]) for term in hamiltonian_terms)
-    tau = time * l / num_samples
+    lam = sum(abs(term[0]) for term in hamiltonian_terms)
+    tau = time * lam / num_samples
+    print("Lambda:", lam)
     v_lst = []
     results = []
     hamiltonian_specific_pmf = [abs(coeff) for coeff, _ in
                                 hamiltonian_terms]
+    print("Prob weights:", hamiltonian_specific_pmf)
     backend = Aer.get_backend('qasm_simulator')
     num_terms = len(hamiltonian_terms)
     for i in range(num_samples):
@@ -268,13 +210,7 @@ def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate):
         random.choices(range(num_terms), weights=hamiltonian_specific_pmf, k=1)[
             0]
         h_j = hamiltonian_terms[j][1]
-
         v = scipy.linalg.expm(1j * tau * h_j.to_matrix())
-
-        # exact_eigenvalue, eigenvectors= scipy.linalg.eig(v)
-        # eigenstate = eigenvectors[:, np.argmin(exact_eigenvalue)] # this is kinda arbitray
-
-        v_lst.append(v)
         qc = babys_first_qpe(v, num_evals=1, eigenstate=eigenstate,
                              backend=backend)
 
@@ -284,21 +220,20 @@ def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate):
         job = backend.run(transpile(qc, backend), shots=shots)
         result = job.result()
         counts = result.get_counts()
-        results.append(np.arcsin(1 - 2 * counts['0'] / shots))
-
+        results.append(np.arcsin(1 - 2 * counts["0"] / shots))
 
     return results, v_lst
 
 
 if __name__ == "__main__":
     # test_qDrift_channel()
+    # test_qDrift_channel()
     # Define the parameters
-    # test_qDrift_channel_ver2()
     num_experiements = 5
-    filename = "qDrift_one_qubit_test.csv"
+    filename = "qDrift_two_qubit_test.csv"
     for _ in range(num_experiements):
-        num_qubits = 1
-        num_terms = 3
+        num_qubits = 2
+        num_terms = 6
         # Generate a random Hamiltonian
         hamiltonian = generate_random_hamiltonian(num_qubits, num_terms)
 
@@ -306,15 +241,17 @@ if __name__ == "__main__":
 
         eigenvalues, eigenvectors = scipy.linalg.eigh(H)
 
-        while any(eigenval.real < 0 for eigenval in eigenvalues):
-            hamiltonian = generate_random_hamiltonian(num_qubits, num_terms)
-            H = sum(coeff * term.to_matrix() for coeff, term in hamiltonian)
-            eigenvalues, eigenvectors = scipy.linalg.eigh(H)
+        # while any(eigenval.real < 0 for eigenval in eigenvalues):
+        #     new_hamiltonian = generate_random_hamiltonian(num_qubits, num_terms)
+        #     H = sum(coeff * term.to_matrix() for coeff, term in new_hamiltonian)
+        #     eigenvalues, eigenvectors = scipy.linalg.eigh(H)
 
         eigenstate = eigenvectors[:, np.argmin(eigenvalues)]  # for small eigenvalue
 
         print("Random Hamiltonian:")
         print(H)
+        print(f"Terms: {[term for _, term in hamiltonian]}")
+        print(f"Coefficients: {[coeff for coeff, _ in hamiltonian]}")
         print(f"Eigenstate:{eigenstate}")
 
 
@@ -336,18 +273,19 @@ if __name__ == "__main__":
 
         file_exists = os.path.isfile(filename)
         # Open the file in append mode or write mode
-        with open(filename, mode='a' if file_exists else 'w', newline='', encoding='utf-8') as csvfile:
+        with open(filename, mode='a' if file_exists else 'w', newline='',
+                  encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
 
             # Write the header only if the file doesn't exist
             if not file_exists:
-                writer.writerow(['Coefficients', 'Hamiltonian', 'Correct Eigenvalue',
-                                 "Estimated Eigenvalue", "Suggested Samples",
-                                 "Used Samples"])
+                writer.writerow(
+                    ['Coefficients', 'Hamiltonian', 'Correct Eigenvalue',
+                     "Estimated Eigenvalue", "Suggested Samples",
+                     "Used Samples"])
 
             # Write the data
             writer.writerow([[coeff for coeff, term in hamiltonian],
                              [term for coeff, term in hamiltonian],
                              eigenvalues[0], sum(qpe_results),
                              suggest_samples, num_samples])
-
