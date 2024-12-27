@@ -1,5 +1,7 @@
 .spyproject
 .idea
+Pipfile
+Pipfile.lock
 
 # Compiled source #
 ###################
