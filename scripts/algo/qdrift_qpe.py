@@ -13,13 +13,21 @@ import scipy.linalg
 import os
 import csv
 
-def babys_first_qpe(U: Union[UnitaryGate, np.array],
-                    num_evals: int,
-                    eigenstate: Optional[Union[QuantumCircuit, np.array]],
-                    backend,
-                    num_qubits,
-                    print_results=False) -> QuantumCircuit:
-    # Data type management:
+
+def babys_first_qpe(U: Union[UnitaryGate, np.array], eigenstate: Optional[Union[QuantumCircuit, np.array]],
+                    num_qubits: int) -> QuantumCircuit:
+    """
+    Returns the QuantumCircuit of the baby's first QPE
+
+    Args:
+        U: abstraction of U gate
+        eigenstate: eigenstate of U
+        num_qubits: number of qubits in the circuit
+
+    Returns:
+        the QuantumCircuit of the baby's first QPE
+    """
+
     # Convert U to a gate if it's a numpy array
     if isinstance(U, np.ndarray):
         U = UnitaryGate(U)
@@ -34,28 +42,44 @@ def babys_first_qpe(U: Union[UnitaryGate, np.array],
     # Prepare the initial eigenstate
     if isinstance(eigenstate, np.ndarray):
         eigenstate_circuit = QuantumCircuit(num_qubits, name='eigenstate')
-        # the eigenstate is a vector of complex numbers that determine the state of the qubits other than the control qubit
         eigenstate_circuit.initialize(eigenstate)
     else:
         eigenstate_circuit = eigenstate
 
-    # Actually create the circuit
+    # Create the circuit
     qc = QuantumCircuit(num_qubits + 1, 1)
-    qc.append(eigenstate_circuit,
-              range(1, num_qubits + 1))  # Apply the eigenstate to the qubits
-    qc.h(0)  # Apply Hadamard to the control qubit
+
+    # Apply the eigenstates
+    qc.append(eigenstate_circuit, range(1, num_qubits + 1))
+
+    # Hadamard gate to the controlled qubit
+    qc.h(0)
     qc.s(0)
-    u = U.control(1)  # Create the controlled-U gate
-    qc.append(u, range(num_qubits + 1))  # Apply the controlled-U gate
-    qc.h(0)  # Apply Hadamard to the control qubit
-    qc.measure(0, cbit=0)  # Measure the control qubit
+
+    # Create and apply the controlled U gate
+    u = U.control(1)
+    qc.append(u, range(num_qubits + 1))
+
+    # Hadamard gate to the controlled qubit
+    qc.h(0)
+
+    # Measure the controlled qubit
+    qc.measure(0, cbit=0)
     qc.barrier()
 
     return qc
 
 
-def generate_random_hamiltonian(num_qubits, num_terms):
-    # Generate a random Pauli string
+def random_pauli_string(num_qubits, num_terms):
+    """
+    Generate randomly a list of pauli operators
+    Args:
+        num_qubits: the number of qubits
+        num_terms: the desired number of pauli operators
+
+    Returns:
+        a list of random pauli operators
+    """
     # pauli_matrices = [Pauli('X'), Pauli('Y'), Pauli('Z'), Pauli('I')]
     pauli_matrices = [Pauli('X'), Pauli('Z'), Pauli('I')]
     hamiltonian_terms = []
@@ -67,33 +91,46 @@ def generate_random_hamiltonian(num_qubits, num_terms):
         hamiltonian_terms.append((random.uniform(0, 1), pauli_string))
     return hamiltonian_terms
 
-def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate, num_qubits):
+
+def qdrift_qpe(pauli_list, time, num_samples, num_qubits, eigenstate):
+    """
+    Return the result of the QPE algorithm on the qdrift channel sampled from hamiltonian_terms
+    with the given parameters for the QPE circuit
+
+    Args:
+        pauli_list: a list of pauli operators
+        time: time of the QPE algorithm
+        num_samples: number of samples in the qdrift channel
+        num_qubits: number of qubits in the circuit
+        eigenstate: an eigenstate for the QPE algorithm
+
+    Returns:
+        the result of quantum phase estimation
+    """
+
     '''
     For j = 1 to N_samples:
         draw H_j randomly
         ...
     '''
-    for term in hamiltonian_terms:
+    for term in pauli_list:
         assert isinstance(term[1], Pauli)
 
-    lam = sum(abs(term[0]) for term in hamiltonian_terms)
+    lam = sum(abs(term[0]) for term in pauli_list)
     tau = time * lam / num_samples
-    print("Lambda:", lam)
     v_lst = []
     results = []
-    hamiltonian_specific_pmf = [abs(coeff) for coeff, _ in
-                                hamiltonian_terms]
-    print("Prob weights:", hamiltonian_specific_pmf)
+    hamiltonian_specific_pmf = [abs(coeff) for coeff, _ in pauli_list]
+    # print("Lambda:", lam)
+    # print("Prob weights:", hamiltonian_specific_pmf)
     backend = Aer.get_backend('qasm_simulator')
-    num_terms = len(hamiltonian_terms)
+    num_terms = len(pauli_list)
     for i in range(num_samples):
-        j = \
-        random.choices(range(num_terms), weights=hamiltonian_specific_pmf, k=1)[
-            0]
-        h_j = hamiltonian_terms[j][1]
+        j = random.choices(range(num_terms), weights=hamiltonian_specific_pmf, k=1)[0]
+        h_j = pauli_list[j][1]
         v = scipy.linalg.expm(1j * tau * h_j.to_matrix())
-        qc = babys_first_qpe(v, num_evals=1, eigenstate=eigenstate,
-                             backend=backend, num_qubits=num_qubits)
+        qc = babys_first_qpe(v, eigenstate=eigenstate,
+                             num_qubits=num_qubits)
 
         shots = 4096 * 128
 
@@ -115,7 +152,7 @@ if __name__ == '__main__':
         for _ in range(num_experiements):
             num_terms = 2 * num_qubits
             # Generate a random Hamiltonian
-            hamiltonian = generate_random_hamiltonian(num_qubits, num_terms)
+            hamiltonian = random_pauli_string(num_qubits, num_terms)
 
             H = sum(coeff * term.to_matrix() for coeff, term in hamiltonian)
 
@@ -137,8 +174,8 @@ if __name__ == '__main__':
                 f"number of samples following the formula from the paper: {suggest_samples}")
 
             # Estimate the Baby's first phase
-            qpe_results, v_lst = qdrift_channel(hamiltonian, time, num_samples,
-                                                eigenstate, num_qubits)
+            qpe_results, v_lst = qdrift_qpe(hamiltonian, time, num_samples,
+                                                num_qubits, eigenstate)
             print(f"Estimated Eigenvalue:{sum(qpe_results)}")
 
             file_exists = os.path.isfile(filename)
