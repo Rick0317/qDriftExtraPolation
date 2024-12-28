@@ -49,6 +49,7 @@ def chebyshev_barycentric_interp_point(x: float, n: int, y:list[float]):
     :param y (list[float]): a list of data points that is to be interpolated
     """
     nodes = chebyshev_nodes(n)
+    # Add 1e-16 to avoid DivideByZero error
     terms = [chebyshev_barycentric_weight(j, n)/(x - nodes[j]) for j in range(n)]
     denom = np.sum(terms)
     for i in range(len(terms)):
@@ -64,3 +65,4 @@ if __name__ == '__main__':
 
     plt.plot(domain,f(domain))
     plt.plot(domain, [chebyshev_barycentric_interp_func(x, n, f) for x in domain])
+    plt.show()
