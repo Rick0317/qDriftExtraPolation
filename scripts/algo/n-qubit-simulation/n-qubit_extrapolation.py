@@ -16,11 +16,12 @@ import csv
 from matplotlib import pyplot as plt
 
 
+
 def babys_first_qpe(U: Union[UnitaryGate, np.array],
                     num_evals: int,
                     eigenstate: Optional[Union[QuantumCircuit, np.array]],
                     backend,
-                    num_qubits=2,
+                    num_qubits,
                     print_results=False) -> QuantumCircuit:
     # Data type management:
     # Convert U to a gate if it's a numpy array
@@ -71,7 +72,7 @@ def generate_random_hamiltonian(num_qubits, num_terms):
     return hamiltonian_terms
 
 
-def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate, shots):
+def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate, shots, qubits):
     '''
     For j = 1 to N_samples:
         draw H_j randomly
@@ -97,7 +98,7 @@ def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate, shots):
         h_j = hamiltonian_terms[j][1]
         v = scipy.linalg.expm(1j * tau * h_j.to_matrix())
         qc = babys_first_qpe(v, num_evals=1, eigenstate=eigenstate,
-                             backend=backend)
+                             backend=backend, num_qubits=qubits,)
 
         # simulate the circuit
         job = backend.run(transpile(qc, backend), shots=shots)
@@ -116,7 +117,7 @@ def draw_plot(axs, idx, title:str, x:list[float], x_label:str, y:list[float], y_
     axs[idx[0], idx[1]].set_title(title)
 
 
-def extrapolation(time, hamiltonian, eigenstate, expected, shots):
+def extrapolation(time, hamiltonian, eigenstate, expected, shots, num_qubits, num_terms):
 
     fig, axs = plt.subplots(2, 2)  # Figure
     fig.set_figheight(10)
@@ -125,7 +126,7 @@ def extrapolation(time, hamiltonian, eigenstate, expected, shots):
     axs_x = 0
     axs_y = 0
 
-    for n in range(2, 12, 2):  # number of the Chebyshev nodes
+    for n in range(2, 10, 2):  # number of the Chebyshev nodes
         data_point = []  # Storage for data points to be interpolated
         nodes = chebyshev_nodes(n)  # The n Chebyshev nodes
 
@@ -133,7 +134,7 @@ def extrapolation(time, hamiltonian, eigenstate, expected, shots):
             node = nodes[i]
             num_samples = int(np.ceil(np.abs(time / node)))
             qpe_results, v_lst = qdrift_channel(hamiltonian, time, num_samples,
-                                                eigenstate, shots)
+                                                eigenstate, shots, num_qubits)
 
             data_point.append(sum(qpe_results) / time)
 
@@ -158,7 +159,7 @@ def extrapolation(time, hamiltonian, eigenstate, expected, shots):
             [num_qubits, num_terms, "Estimate", estimate_at_zero, n, time, shots]
         ]
 
-        with open("extrapolation_result_symmetric_fid095.csv", mode="a", newline="") as file:
+        with open("extrapolation_result_symmetric_8nodes_10q.csv", mode="a", newline="") as file:
             writer = csv.writer(file)
             writer.writerows(data)
 
@@ -168,17 +169,11 @@ def extrapolation(time, hamiltonian, eigenstate, expected, shots):
         print(f"Saved plot to {file_name}")
 
 
-# Generate a random state orthogonal to the eigenstate
-def generate_orthogonal_state(state):
-    # Random state in the same dimension
-    random_state = np.random.randn(*state.shape) + 1j * np.random.randn(*state.shape)
-    random_state -= np.vdot(random_state, state) * state  # Make orthogonal
-    return random_state / np.linalg.norm(random_state)    # Normalize
-
 if __name__ == '__main__':
 
-    num_qubits = 2
-    num_terms = 6
+    num_qubits = 6
+
+    num_terms = 2 * num_qubits
     # Generate a random Hamiltonian
     hamiltonian = generate_random_hamiltonian(num_qubits, num_terms)
 
@@ -188,12 +183,6 @@ if __name__ == '__main__':
 
     eigenstate = eigenvectors[:, np.argmin(eigenvalues)]
 
-    fidelity = 0.95
-    orthogonal_state = generate_orthogonal_state(eigenstate)
-    new_state = np.sqrt(fidelity) * eigenstate + np.sqrt(
-        1 - fidelity) * orthogonal_state
-    new_state /= np.linalg.norm(new_state)
-
     times = [100, 500, 1000, 2000, 5000]
     shots_list = [2048, 4096, 8192]
     for time in times:
@@ -201,12 +190,14 @@ if __name__ == '__main__':
 
             print(f"Correct eigenvalue: {eigenvalues[0]}")
             data = [
-                ["N Qubits", "N Terms", "Correct or Estimate", "Value", "N Points", "time", "shots"],
+                ["N Qubits", "N Terms", "Correct or Estimate", "Value",
+                 "N Points", "time", "shots"],
                 [num_qubits, num_terms, "Correct", eigenvalues[0], 0, time, 0]
             ]
 
-            with open("extrapolation_result_symmetric_fid095.csv", mode="a", newline="") as file:
+            with open("extrapolation_result_symmetric_8nodes_10q.csv", mode="a",
+                      newline="") as file:
                 writer = csv.writer(file)
                 writer.writerows(data)
 
-            extrapolation(time, hamiltonian, new_state, eigenvalues[0], shots)
+            extrapolation(time, hamiltonian, eigenstate, eigenvalues[0], shots, num_qubits, num_terms)

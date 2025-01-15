@@ -1,0 +1,7 @@
+N Qubits,N Terms,Correct or Estimate,Value,N Points,time,shots
+10,20,Correct,-4.818222868135399,0,100,0
+N Qubits,N Terms,Correct or Estimate,Value,N Points,time,shots
+6,12,Correct,-2.1967248264121055,0,100,0
+6,12,Estimate,-0.5307005698355823,2,100,2048
+6,12,Estimate,-2.2425522917463874,4,100,2048
+6,12,Estimate,-2.4547133655998103,6,100,2048

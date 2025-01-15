@@ -1,0 +1,28 @@
+N Qubits,N Terms,Correct or Estimate,Value,N Points,time,shots
+4,8,Correct,-2.9631522616900163,0,100,0
+4,8,Estimate,-0.47980465724906307,2,100,2048
+4,8,Estimate,-3.116648361956237,4,100,2048
+4,8,Estimate,-3.331123071315758,6,100,2048
+4,8,Estimate,-3.0868710721947292,8,100,2048
+N Qubits,N Terms,Correct or Estimate,Value,N Points,time,shots
+4,8,Correct,-2.9631522616900163,0,100,0
+4,8,Estimate,-0.4718923446315859,2,100,4096
+4,8,Estimate,-3.128752829157522,4,100,4096
+4,8,Estimate,-3.312993145461912,6,100,4096
+4,8,Estimate,-3.175342440980137,8,100,4096
+N Qubits,N Terms,Correct or Estimate,Value,N Points,time,shots
+4,8,Correct,-2.9631522616900163,0,100,0
+4,8,Estimate,-0.45487680933389496,2,100,8192
+4,8,Estimate,-3.1458301105834785,4,100,8192
+4,8,Estimate,-3.246599347076461,6,100,8192
+4,8,Estimate,-3.1862107012931404,8,100,8192
+N Qubits,N Terms,Correct or Estimate,Value,N Points,time,shots
+4,8,Correct,-2.9631522616900163,0,500,0
+4,8,Estimate,-0.4581576124212009,2,500,2048
+4,8,Estimate,-3.12203867186627,4,500,2048
+4,8,Estimate,-3.342171601858981,6,500,2048
+4,8,Estimate,-3.1405885271295304,8,500,2048
+N Qubits,N Terms,Correct or Estimate,Value,N Points,time,shots
+4,8,Correct,-2.9631522616900163,0,500,0
+4,8,Estimate,-0.4478953932888434,2,500,4096
+4,8,Estimate,-3.1981036550268414,4,500,4096
