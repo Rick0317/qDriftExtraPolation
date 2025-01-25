@@ -1,0 +1,10 @@
+{
+    "name": "Quantum Stuff Dev Container",
+    "dockerFile": "../dockerfile",
+    "context": "..",
+    "mounts": [
+      "source=../,target=/workspace,type=bind"
+    ]
+    
+}
+  
