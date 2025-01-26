@@ -4,6 +4,8 @@ import openfermionpsi4 as ofpsi4
 from qdrift_qpe import babys_first_qpe
 from qiskit import QuantumCircuit, transpile
 from qiskit_aer import Aer
+from tqdm import tqdm
+import os
 
 
 from openfermion import MolecularData
@@ -167,11 +169,11 @@ def create_molecule_data(molecule_name,
     
     print(f'{molecule_name} has:')
     print(f'\tgeometry of {molecule.geometry},')
-    print(f'\t{molecule.n_electrons} electrons in {2*molecule.n_orbitals} spin-orbitals,')
-    print(f'\tHartree-Fock energy of {molecule.hf_energy:.6f} Hartree,')
-    print(f'\tCISD energy of {molecule.cisd_energy:.6f} Hartree,')
-    print(f'\tCCSD energy of {molecule.ccsd_energy:.6f} Hartree,')
-    print(f'\tFCI energy of {molecule.fci_energy:.6f} Hartree.')
+    print(f'\t{molecule.n_electrons} electrons in {2*molecule.n_orbitals if molecule.n_orbitals is not None else "n/a"} spin-orbitals,')
+    print(f'\tHartree-Fock energy of {molecule.hf_energy if molecule.hf_energy is not None else "n/a"} Hartree,')
+    print(f'\tCISD energy of {molecule.cisd_energy if molecule.cisd_energy is not None else "n/a"} Hartree,')
+    print(f'\tCCSD energy of {molecule.ccsd_energy if molecule.ccsd_energy is not None else "n/a"} Hartree,')
+    print(f'\tFCI energy of {molecule.fci_energy if molecule.fci_energy is not None else "n/a"} Hartree.')
 
     # 2. Save molecule.
     
@@ -184,7 +186,7 @@ def create_molecule_data(molecule_name,
     print("Converting molecular Hamiltonian to qubit Hamiltonian", end="...")
     
     active_space_start=0
-    active_space_stop=molecule.n_orbitals
+    active_space_stop=molecule.n_orbitals if molecule.n_orbitals is not None else 2*molecule.n_electrons if molecule.n_electrons is not None else 0
 
     # Get the Hamiltonian in an active space.
     molecular_hamiltonian = molecule.get_molecular_hamiltonian(
@@ -219,11 +221,10 @@ def load_qubit_hamiltonian(file_path):
     for term, coeff in qubit_hamiltonian.terms.items():
          
         pauli_str = ["I"  for _ in range(n_qubits)]
-        hamiltonian_terms.append((coeff.real, Pauli("-i" + "".join(pauli_str))))
+        
         for tensor_term in term:
             pauli_str[tensor_term[0]] = tensor_term[1]
-        
-        hamiltonian_terms.append((coeff, Pauli(pauli_str)))
+            hamiltonian_terms.append((coeff.real, Pauli("".join(pauli_str))))
     
     return hamiltonian_terms
 
@@ -252,7 +253,7 @@ def qdrift_channel(hamiltonian_terms, time, num_samples, eigenstate, shots, qubi
     results = []
     prob_weights = [abs(coeff) for coeff, _ in hamiltonian_terms]
     
-    for _ in range(num_samples):
+    for _ in tqdm(range(num_samples)):
         idx = random.choices(range(len(hamiltonian_terms)), weights=prob_weights, k=1)[0]
         h_j = hamiltonian_terms[idx][1]
         unitary = expm(1j * tau * h_j.to_matrix())
@@ -295,19 +296,26 @@ def extrapolation(time, hamiltonian, eigenstate, expected, shots, num_qubits, nu
 
 
 if __name__ == "__main__":
-    # prepare_psi4("N2")
-    # create_molecule_data("N2")
+    molecule_name = "LiH"
+    # prepare_psi4(molecule_name)
+    # run in the command line: psi4 CH4.dat
+    # os.system(f"psi4 {molecule_name}.dat")
+    create_molecule_data(molecule_name)
 
+    """
     hamiltonian_terms = load_qubit_hamiltonian("N2_qubit_hamiltonian.pkl")
     num_qubits = len(hamiltonian_terms[0][1].to_label())
     num_terms = len(hamiltonian_terms)
     print(f"Number of qubits: {num_qubits}\nNumber of terms: {num_terms}")
-    H = sum(coeff * term.to_matrix() for coeff, term in hamiltonian_terms)
+    H = sum(coeff * term.to_matrix(True) for coeff, term in tqdm(hamiltonian_terms))
+    print(f"H: {H}")
     eigenvalues, eigenvectors = scipy.linalg.eigh(H)
     eigenstate = eigenvectors[:, np.argmin(eigenvalues)]
     print(f"Eigenstate: {eigenstate}")
-    results, v_lst = qdrift_channel(hamiltonian_terms, time=0.1, num_samples=1000, eigenstate=eigenstate, shots=4096, qubits=num_qubits)
+    results, v_lst = qdrift_channel(hamiltonian_terms, time=0.1, num_samples=2, eigenstate=eigenstate, shots=4096, qubits=num_qubits)
     print(f"Results: {results}")
+    """
+
 
 
 

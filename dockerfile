@@ -51,9 +51,15 @@ RUN pip install openfermioncirq
 RUN pip install openfermionpsi4 
 RUN pip install openfermionpyscf
 RUN pip install qiskit
+RUN pip install tqdm
+RUN pip install seaborn
 
 # Ensure python points to python3
 RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Install Jupyter within the Conda environment
+RUN conda run -n psi4env pip install jupyter notebook && \
+    conda clean -a -y
 
 # Set entrypoint to bash
 ENTRYPOINT ["/bin/bash"]
