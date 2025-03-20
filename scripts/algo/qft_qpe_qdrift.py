@@ -1,5 +1,5 @@
-from qiskit import QuantumCircuit, Aer, transpile
-from qiskit.circuit.library import QFT
+from qiskit import QuantumCircuit, transpile
+from qiskit.circuit.library import QFT, UnitaryGate
 from qiskit.quantum_info import Pauli, SparsePauliOp, Operator
 from qiskit_aer import Aer
 from qiskit.visualization import plot_histogram, circuit_drawer
@@ -9,58 +9,94 @@ import numpy as np
 from functools import reduce
 import scipy.linalg
 import pandas as pd
+from qiskit.quantum_info import diamond_norm, SuperOp
 
-# Function to generate a random Hamiltonian
-def generate_random_hamiltonian(num_qubits, num_terms):
-    pauli_matrices = [Pauli('X'), Pauli('Z'), Pauli('I')]
-    hamiltonian_terms = []
-    for _ in range(num_terms):
-        pauli_string = reduce(lambda x, y: x.tensor(y),
-                              random.choices(pauli_matrices, k=num_qubits))
-        hamiltonian_terms.append((random.uniform(0, 1), pauli_string))
-    return hamiltonian_terms
+# Type aliases
+coefficient = float
+Hamiltonian = list[tuple[coefficient, Pauli]]
+
+# --------------------------------------------- Part 1: just qDRIFT ------------------------------------------------
 
 # Function to sample unitaries from the qDRIFT distribution
-def qdrift_sample(hamiltonian_terms, time, num_samples):
+def qdrift_sample(hamiltonian_terms: list[tuple[coefficient, Pauli]], time, num_samples) -> tuple[list[Operator], list[str]]:
     lam = sum(abs(term[0]) for term in hamiltonian_terms)
-    tau = time * lam / num_samples
+    tau = time  * lam / num_samples
     sampled_unitaries = []
     hamiltonian_specific_pmf = [abs(coeff) for coeff, _ in hamiltonian_terms]
     num_terms = len(hamiltonian_terms)
+    labels = []
     for _ in range(num_samples):
         j = random.choices(range(num_terms), weights=hamiltonian_specific_pmf, k=1)[0]
         h_j = hamiltonian_terms[j][1]
         v = scipy.linalg.expm(1j * tau * h_j.to_matrix())
         sampled_unitaries.append(v)
-    return sampled_unitaries
+        # Format the label as LaTeX
+        labels.append(f"$e^{{i\\cdot {float('%.1g' % tau)}\\cdot H_{j}}}$")
+    return sampled_unitaries, labels
 
+def estimate_theoretical_qdrift_errror(num_samples, lam, time):
+    """
+    Comparing E and UN , we see that the zeroth and first
+    order terms match whenever τ = tλ/N. The higher order
+    terms will not typically match and more careful analysis
+    (see App. B) shows that the channels E and UN differ by
+    an amount bounded by
+    δ ≤(2λ^2t^2)/(N^2) * e^{2λt/N }
+
+    This is the error for a single random operation. The error for the whole circuit is the sum of the errors for each
+    random operation:
+    error = Nδ \leq 2λ^2 t^2 / N .
+. """
+    return (2 * lam**2 * time**2 / num_samples) * np.exp(2 * lam * time / num_samples)
+
+
+def exact_unitary_evolution(hamiltonian_terms: Hamiltonian, time: float) -> Operator:
+    """
+    Compute the exact unitary evolution U = exp(-iHt) for a given Hamiltonian.
+    """
+    H = sum(coeff * op.to_matrix() for coeff, op in hamiltonian_terms)
+    U_exact = scipy.linalg.expm(1j * time * H)
+    return Operator(U_exact)
+
+
+def unitary_error_2_norm(U_exact: Operator, U_qdrift: Operator) -> float:
+    """
+    Compute the operator 2-norm difference between the exact unitary and qDRIFT evolution.
+    """
+    return np.linalg.norm(U_exact.data - U_qdrift.data, ord=2)  # Spectral norm
+
+def unitary_error_inf_norm(U_exact: Operator, U_qdrift: Operator) -> float:
+    """
+    Compute the operator 2-norm difference between the exact unitary and qDRIFT evolution.
+    """
+    return np.linalg.norm(U_exact.data - U_qdrift.data, ord=np.inf)  # Spectral norm
+
+
+def compute_diamond_distance(U_exact: Operator, U_qdrift: Operator) -> float:
+    """
+    Compute the diamond distance between the exact and qDRIFT quantum channels.
+    """
+    exact_channel = SuperOp(U_exact)
+    qdrift_channel = SuperOp(U_qdrift)
+    return diamond_norm(exact_channel - qdrift_channel)
+
+# ----------------------------------------------- Part 2: QPE ------------------------------------------------------
 # Function to construct controlled unitaries
-def construct_controlled_unitary(sampled_unitaries):
+def construct_controlled_unitary(sampled_unitaries, labels):
     controlled_unitaries = []
-    for unitary in sampled_unitaries:
-        controlled_unitary = UnitaryGate(unitary).control(1)
+    for unitary, label in zip(sampled_unitaries, labels):
+        controlled_unitary = UnitaryGate(unitary, label=label).control(1)
         controlled_unitaries.append(controlled_unitary)
     return controlled_unitaries
 
-# Function to calculate the eigenstate associated with the smallest eigenvalue
-def calculate_smallest_eigenstate(hamiltonian_terms):
-    # Construct the full Hamiltonian matrix
-    H = sum(coeff * op.to_matrix() for coeff, op in hamiltonian_terms)
-    # Compute eigenvalues and eigenvectors
-    eigenvalues, eigenvectors = np.linalg.eigh(H)
-    # Find the smallest eigenvalue and corresponding eigenstate
-    smallest_eigenvalue = eigenvalues[0]
-    smallest_eigenstate = eigenvectors[:, 0]
-    return smallest_eigenvalue, smallest_eigenstate
-
 # Function to perform qDRIFT-based QPE
-def qdrift_qpe(hamiltonian_terms, time, num_samples, eigenstate, num_qubits, num_ancilla):
+def qdrift_qpe(hamiltonian_terms, time, eigenstate, num_qubits, num_ancilla):
     # Initialize the quantum circuit
     qc = QuantumCircuit(num_ancilla + num_qubits, num_ancilla)
     
-    # Prepare the eigenstate
+    # Prepare the eigenstate on the system qubits
     if isinstance(eigenstate, np.ndarray):
-        eigenstate_circuit = QuantumCircuit(num_qubits, name='eigenstate')
+        eigenstate_circuit = QuantumCircuit(num_qubits, name=f'eigenstate')
         eigenstate_circuit.initialize(eigenstate)
     else:
         eigenstate_circuit = eigenstate
@@ -68,15 +104,19 @@ def qdrift_qpe(hamiltonian_terms, time, num_samples, eigenstate, num_qubits, num
     qc.append(eigenstate_circuit, range(num_ancilla, num_ancilla + num_qubits))
     
     # Apply QFT to the ancilla qubits
-    qc.append(QFT(num_ancilla), range(num_ancilla))
+    qc.append(QFT(num_ancilla), range(num_ancilla ))
     
     # Perform controlled qDRIFT unitaries
     for k in range(num_ancilla):
-        sampled_unitaries = qdrift_sample(hamiltonian_terms, time, 2**k)
-        controlled_unitaries = construct_controlled_unitary(sampled_unitaries)
-        for unitary in controlled_unitaries:
-            qc.append(unitary, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
-    
+        for _ in range(2**k):
+            # Sample unitaries from qDRIFT distribution
+            sampled_unitaries, labels = qdrift_sample(hamiltonian_terms=hamiltonian_terms, time=time, num_samples=1)
+            # Construct controlled unitaries
+            controlled_unitaries = construct_controlled_unitary(sampled_unitaries, labels)
+            # Apply controlled unitaries
+            for controlled_unitary in controlled_unitaries:
+                # apply controlled unitary such that the control qubit is ancilla qubit k
+                qc.append(controlled_unitary, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
     # Apply inverse QFT
     qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
     
@@ -103,43 +143,3 @@ def store_results(estimated_phases, actual_eigenvalues, errors):
     df = pd.DataFrame(data)
     return df
 
-# Example usage
-num_qubits = 3
-num_terms = 5
-num_ancilla = 3
-time = 1.0
-num_samples = 100
-
-# Generate a random Hamiltonian
-hamiltonian_terms = generate_random_hamiltonian(num_qubits, num_terms)
-
-# Calculate the smallest eigenvalue and corresponding eigenstate
-smallest_eigenvalue, smallest_eigenstate = calculate_smallest_eigenstate(hamiltonian_terms)
-
-# Run qDRIFT-based QPE
-qc = qdrift_qpe(hamiltonian_terms, time, num_samples, smallest_eigenstate, num_qubits, num_ancilla)
-
-# Visualize the circuit
-print("Quantum Circuit:")
-print(qc.draw())
-
-# Simulate the circuit
-backend = Aer.get_backend('qasm_simulator')
-job = backend.run(transpile(qc, backend), shots=1024)
-result = job.result()
-counts = result.get_counts()
-
-# Calculate the estimated phase
-estimated_phase = max(counts, key=counts.get)  # Most frequent measurement
-estimated_phase = int(estimated_phase, 2)  # Convert binary string to integer
-
-# Calculate the error
-error = calculate_error(estimated_phase, smallest_eigenvalue, num_ancilla)
-
-# Store results in a Pandas DataFrame
-results_df = store_results([estimated_phase], [smallest_eigenvalue], [error])
-print("\nResults:")
-print(results_df)
-
-# Visualize the measurement results
-plot_histogram(counts)
