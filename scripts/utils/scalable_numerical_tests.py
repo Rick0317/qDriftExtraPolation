@@ -21,7 +21,7 @@ def generate_random_hamiltonian(num_qubits, num_terms) -> Hamiltonian:
     for _ in range(num_terms):
         pauli_string = reduce(lambda x, y: x.tensor(y),
                               random.choices(pauli_matrices, k=num_qubits))
-        hamiltonian_terms.append((random.uniform(0, 1), pauli_string))
+        hamiltonian_terms.append((random.uniform(0, 1), pauli_string)) # The first element is the coefficient
     return hamiltonian_terms
 
 

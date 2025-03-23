@@ -81,6 +81,35 @@ def compute_diamond_distance(U_exact: Operator, U_qdrift: Operator) -> float:
     return diamond_norm(exact_channel - qdrift_channel)
 
 # ----------------------------------------------- Part 2: QPE ------------------------------------------------------
+
+def standard_qpe(unitary: Operator, eigenstate: QuantumCircuit, num_ancilla: int):
+    """Constructs a standard Quantum Phase Estimation (QPE) circuit."""
+    num_qubits = unitary.num_qubits
+    qc = QuantumCircuit(num_ancilla + num_qubits, num_ancilla)
+
+    # Prepare eigenstate
+    qc.append(eigenstate, range(num_ancilla, num_ancilla + num_qubits))
+
+    # Apply QFT on ancilla qubits
+    qc.append(QFT(num_ancilla), range(num_ancilla))
+
+    # Apply controlled unitaries
+    for k in range(num_ancilla):
+        power = 2**k
+        controlled_U = UnitaryGate(unitary.data).control(1, label=f"U^{power}")
+        qc.append(controlled_U, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
+
+    # Apply inverse QFT
+    qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
+
+    # Measure ancilla
+    qc.measure(range(num_ancilla), range(num_ancilla))
+
+    return qc
+
+
+# ----------------------------------------------- Part 3: qDRIFT-based QPE ----------------------------------------
+
 # Function to construct controlled unitaries
 def construct_controlled_unitary(sampled_unitaries, labels):
     controlled_unitaries = []
@@ -124,22 +153,4 @@ def qdrift_qpe(hamiltonian_terms, time, eigenstate, num_qubits, num_ancilla):
     qc.measure(range(num_ancilla), range(num_ancilla))
     
     return qc
-
-# Function to calculate the error between estimated and actual eigenvalues
-def calculate_error(estimated_phase, actual_eigenvalue, num_ancilla):
-    # Convert the estimated phase to an eigenvalue
-    estimated_eigenvalue = 2 * np.pi * estimated_phase / (2**num_ancilla)
-    # Calculate the absolute error
-    error = abs(estimated_eigenvalue - actual_eigenvalue)
-    return error
-
-# Function to store results in a Pandas DataFrame
-def store_results(estimated_phases, actual_eigenvalues, errors):
-    data = {
-        'Estimated Phase': estimated_phases,
-        'Actual Eigenvalue': actual_eigenvalues,
-        'Error': errors
-    }
-    df = pd.DataFrame(data)
-    return df
 
