@@ -82,30 +82,33 @@ def compute_diamond_distance(U_exact: Operator, U_qdrift: Operator) -> float:
 
 # ----------------------------------------------- Part 2: QPE ------------------------------------------------------
 
-def standard_qpe(unitary: Operator, eigenstate: QuantumCircuit, num_ancilla: int):
-    """Constructs a standard Quantum Phase Estimation (QPE) circuit."""
+def standard_qpe(unitary: Operator, eigenstate: QuantumCircuit, num_ancilla: int) -> QuantumCircuit:
+    """Constructs a standard Quantum Phase Estimation (QPE) circuit using repeated controlled-U applications."""
     num_qubits = unitary.num_qubits
     qc = QuantumCircuit(num_ancilla + num_qubits, num_ancilla)
 
-    # Prepare eigenstate
+    # Prepare eigenstate on system qubits
     qc.append(eigenstate, range(num_ancilla, num_ancilla + num_qubits))
 
-    # Apply QFT on ancilla qubits
-    qc.append(QFT(num_ancilla), range(num_ancilla))
+    # Apply Hadamard gates to ancilla qubits
+    qc.h(range(num_ancilla))
 
-    # Apply controlled unitaries
+    # Apply controlled-U^(2^k) using repeated controlled applications of U
     for k in range(num_ancilla):
-        power = 2**k
-        controlled_U = UnitaryGate(unitary.data).control(1, label=f"U^{power}")
-        qc.append(controlled_U, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
+        controlled_U = UnitaryGate(unitary.data).control(1, label=f"U")
+        
+        # Apply controlled-U 2^k times
+        for _ in range(2**k):  
+            qc.append(controlled_U, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
 
-    # Apply inverse QFT
+    # Apply inverse QFT on ancilla qubits
     qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
 
-    # Measure ancilla
+    # Measure ancilla qubits
     qc.measure(range(num_ancilla), range(num_ancilla))
 
     return qc
+
 
 
 # ----------------------------------------------- Part 3: qDRIFT-based QPE ----------------------------------------

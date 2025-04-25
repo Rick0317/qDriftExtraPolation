@@ -51,4 +51,4 @@ class QDrift:
             v_list.append(linalg.expm(1j * lm * self.t * j.matrix * j.coefficient / N))
 
         return h_list, v_list
-
+    

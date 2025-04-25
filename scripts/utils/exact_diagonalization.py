@@ -1,4 +1,4 @@
-from scripts import utils as of_util
+from . import scripts as of_util
 import openfermion as of
 import numpy as np
 import scipy
