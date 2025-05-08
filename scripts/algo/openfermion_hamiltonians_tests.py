@@ -1,7 +1,7 @@
 import csv
 import openfermion as of
 import openfermionpsi4 as ofpsi4
-from qdrift_qpe import babys_first_qpe
+from .qdrift_qpe import babys_first_qpe
 from qiskit import QuantumCircuit, transpile
 from qiskit_aer import Aer
 from tqdm import tqdm

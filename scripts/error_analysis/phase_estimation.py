@@ -11,7 +11,7 @@ import tqdm
 import openpyxl
 from openpyxl.styles import PatternFill
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # this is ugly af but noting else worked for some reason
-from algo.iterative_phase_estimation import iterative_phase_estimation_v2
+from scripts.algo import iterative_phase_estimation_v2
 
 def generate_random_hermitian(print_output=False):
     # Generate a random 2x2 Hermitian matrix with real, non-negative eigenvalues
@@ -20,20 +20,20 @@ def generate_random_hermitian(print_output=False):
         b = np.random.rand()
         c = np.random.rand()
         d = np.random.rand()
-        
+
         # Construct the Hermitian matrix
         hermitian_matrix = np.array([[a, b + 1j * c], [b - 1j * c, d]])
-        
+
         # Calculate eigenvalues
         eigenvalues, _ = np.linalg.eig(hermitian_matrix)
-        
+
         # Check if the matrix is Hermitian and has real, non-negative eigenvalues
         if np.all(np.isreal(eigenvalues)) and np.all(eigenvalues >= 0):
             if print_output:
                 print(f'Hermitian matrix: \n{hermitian_matrix}')
                 print(f'Eigenvalues: {eigenvalues}')
             return hermitian_matrix
-        
+
 
 def probability_of_estimation_error(delta, n):
     # P [ˆθ − θ ≥ δ ] ≤ 2e^{−2nδ^2}
@@ -47,15 +47,15 @@ def upper_bound_linear(p0, delta):
 def upper_bound_nonlinear(p0, delta):
     # returns upper bound on the error in phase estimation given the error in p0 estimation
     return delta / np.sqrt(-(p0 + delta - 1) * (p0 + delta )) if -(p0 + delta - 1) * (p0 + delta ) > 0 else np.inf
-        
+
 if __name__ == "__main__":
 
     NUM_TRIALS = 10000
     NUM_RAND_MATRICES = 15
     backend = Aer.get_backend('qasm_simulator')
     random_hermitians = [generate_random_hermitian() for _ in range(NUM_RAND_MATRICES)]
-    all_estimation_errors = {} 
-    
+    all_estimation_errors = {}
+
     for i in [5,50,5000,10000]:
         PHASE_ESTIMATION_MEAUREMENTS = i
         all_p0_estimation_errors = []
@@ -68,7 +68,7 @@ if __name__ == "__main__":
             exact_p0 = np.cos(min(exact_eigenvalue) / 2) ** 2 # we kind of arbitrarily choose the smallest eigenvalue as the one we want to estimate
             U = scipy.linalg.expm(1j * test_hermitian) # unitary operator corresponding to the Hermitian matrix
             eigenstate = eigenvectors[:, np.argmin(exact_eigenvalue)] # pick eigenstate that corresponds to smallest eigenvalue
-            
+
             estimated_eigenvalues = []
             estimation_errors = []
             p0_estimation_errors = []
@@ -96,12 +96,12 @@ if __name__ == "__main__":
             # now, plot error in estimated eigenvalues vs error in estimated p_0
             phase_error_plot.add_trace(go.Scatter(x=estimation_errors, y=p0_estimation_errors, mode='markers', name=f'Matrix {i + 1}'))
 
-            
+
         # Generate data for the function that upperbound p0 error
         delta_values = np.linspace(-0.00001, 1, 100)
         prob_values = probability_of_estimation_error(delta_values, n=PHASE_ESTIMATION_MEAUREMENTS)
         fig.add_trace(go.Scatter(x=delta_values, y=prob_values, mode='lines', name='Probability of Estimation Error'))
-        
+
 
         # Add label for n
         fig.add_annotation(
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         )
         phase_error_plot.write_image(f'phase_error_plot_{PHASE_ESTIMATION_MEAUREMENTS}.png')
         phase_error_plot.show()
-        
+
         # also show both analytical bounds
         # upper_bounds_linear = [upper_bound_linear(og_p0, delta) for delta, og_p0 in zip(delta_values, prob_values)]
 
@@ -162,8 +162,8 @@ if __name__ == "__main__":
         workbook = writer.book
         worksheet = writer.sheets['Estimation Errors']
     '''
-    
-    
+
+
 
 
 
