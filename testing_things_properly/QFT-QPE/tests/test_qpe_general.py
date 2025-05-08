@@ -57,3 +57,11 @@ def test_general_qpe_with_parametrized_phase(phase, expected_bin):
     # Log data
     with open(LOG_FILE, "a") as log_file:
         log_file.write(f"{filename},{phase},{num_ancilla},{most_probable},{estimated_phase}\n")
+
+def test_general_qpe_with_n_fold_tensor_prod_of_paulis():
+# test that result is the best n-bit approximation of the phase
+
+
+
+def test_general_qpe_with_known_hamiltonian():
+    # e^{-iHt}
