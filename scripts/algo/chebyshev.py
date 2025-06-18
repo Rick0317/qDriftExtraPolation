@@ -14,9 +14,9 @@ def chebyshev_nodes(n: int):
 
 def chebyshev_barycentric_weight(j: int, n: int):
     """Returns the value of j-th barycentric weight for the n Chebyshev points of the first kind
-    
+
     :precondition: j = 0, ..., n-1
-    
+
     :param j (int): j-th barycentric weight
     :param n (int): a number of Chebyshev nodes
     :return: the j-th barycentric weight for the Chebyshev points of the first kind

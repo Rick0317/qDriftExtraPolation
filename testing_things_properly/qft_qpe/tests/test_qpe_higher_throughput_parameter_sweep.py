@@ -4,14 +4,16 @@ import os
 import numpy as np
 from qiskit.quantum_info import Operator
 from qiskit.circuit.library import PhaseGate
-from sane_applications.qft_qpe.algos import standard_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, calculate_ground_state_and_energy, qdrift_qpe
+from testing_things_properly.qft_qpe.algos import standard_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, calculate_ground_state_and_energy #, qdrift_qpe
 from qiskit_aer import AerSimulator
 from qiskit import transpile, QuantumCircuit
+from testing_things_properly.qft_qpe.algos import qdrift_qpe
+
 from qiskit.visualization import plot_histogram
 import pytest
 import math
 import pandas as pd
-
+from qiskit.quantum_info import Operator, Pauli
 
 
 # Sanity check but with varying number of ancilla qubits
@@ -36,7 +38,7 @@ def test_generat_qpe_with_parametrized_phase_and_ancilla(phase, expected_bin, nu
 
     # Determine the most probable bitstring
     most_probable = max(counts, key=counts.get)
-    
+
     # Assert that the most probable bitstring starts with the expected prefix
     assert most_probable.startswith(expected_bin), f"Expected prefix {expected_bin}, got {most_probable}"
 
@@ -53,25 +55,23 @@ NUM_QUBITS = 2
 J = 1.2
 G = 1.0
 
-# Parameter sweep for time
-TIME_VALUES = [0.00001 * i for i in range(1, 100000, 1000)] # Time values for the simulation
-SHOTS_VALUES = [10000]
-ANCILLA_VALUES = [5, 14]  # Number of ancilla qubits
+
+TIME_VALUES = [0.05]
+SHOTS_VALUES = [1]
+ANCILLA_VALUES = [6]
 
 @pytest.mark.parametrize("time", TIME_VALUES)
 @pytest.mark.parametrize("shots", SHOTS_VALUES)
 @pytest.mark.parametrize("num_ancilla", ANCILLA_VALUES)
-
-
 def test_qdrift_qpe_ising_hamiltonian_general_case(time, shots, num_ancilla):
     """Test QPE with Ising Hamiltonian (General Case) and log Hamiltonian representations."""
-
+    epsilon = 0.01
     # Generate Ising Hamiltonian
     H = generate_ising_hamiltonian(NUM_QUBITS, J, G)
     matrix = H.to_matrix()
     eigenvalues, eigenvectors = np.linalg.eig(matrix)
+    print(eigenvalues)
     alpha = sum(abs(H.coeffs))
-
     first_positive_eigenvalue = min(eigenvalues[eigenvalues > 0])
     eigenvector_index = np.where(eigenvalues == first_positive_eigenvalue)[0][0]
     first_positive_eigenvect = eigenvectors[:, eigenvector_index]
@@ -81,25 +81,31 @@ def test_qdrift_qpe_ising_hamiltonian_general_case(time, shots, num_ancilla):
     expected_bitstring = bin(round(expected_phase * (2 ** num_ancilla)))[2:].zfill(num_ancilla)
 
     eigenstate_circuit = prepare_eigenstate_circuit(first_positive_eigenvect)
+    num_samples = 100
+    tau = np.ceil((J + 2 * G) * time / num_samples)
+    total_counts = {}
+    for _ in range(num_samples):
+        qc = qdrift_qpe(H, eigenstate=eigenstate_circuit, time=time, num_qubits=NUM_QUBITS, num_ancilla=num_ancilla, num_samples=num_samples)
 
-    qc = qdrift_qpe(H, eigenstate=eigenstate_circuit, time=time, num_qubits=NUM_QUBITS, num_ancilla=num_ancilla)
-    print("Depth:", qc.depth())
-    print("Size:", qc.size())
-    print("Width:", qc.width())
+        # Simulate the circuit
+        simulator = AerSimulator()
+        compiled_circuit = transpile(qc, simulator)
+        result = simulator.run(compiled_circuit, shots=shots).result()
+        counts = result.get_counts()
 
+        # Determine the most probable bitstring
+        most_probable = max(counts, key=counts.get)
+        if most_probable in total_counts:
+            total_counts[most_probable] += 1
+        else:
+            total_counts[most_probable] = 1
 
-    # Simulate the circuit
-     # Simulate the circuit
-    simulator = AerSimulator()
-    compiled_circuit = transpile(qc, simulator)
-    result = simulator.run(compiled_circuit, shots=shots).result()
-    counts = result.get_counts()
-
-    # Determine the most probable bitstring
-    most_probable = max(counts, key=counts.get)
+    most_probable = max(total_counts, key=total_counts.get)
+    print(most_probable)
     estimated_decimal = int(most_probable, 2) / (2 ** num_ancilla)
     estimated_phase = estimated_decimal
     estimated_energy = 2 * np.pi * estimated_phase / time
+
 
     # Calculate error
     eigenvalue_error = np.abs(estimated_energy - first_positive_eigenvalue)
@@ -142,7 +148,7 @@ def test_qpe_ising_hamiltonian_general_case_positive(time, shots, num_ancilla):
     # Expected phase calculation
     expected_phase = (first_positive_eigenvalue.real * time) / (2 * np.pi) % 1
     expected_bitstring = bin(round(expected_phase * (2 ** num_ancilla)))[2:].zfill(num_ancilla)
-    
+
 
     # Exponentiate the Hamiltonian
     U = exponentiate_hamiltonian(H, time)
