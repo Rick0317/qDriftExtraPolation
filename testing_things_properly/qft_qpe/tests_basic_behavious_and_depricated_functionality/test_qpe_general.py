@@ -48,6 +48,7 @@ def test_general_qpe_with_parametrized_phase(phase, expected_bin):
     estimated_phase = 2 * math.pi * estimated_decimal
     assert most_probable.startswith(expected_bin), f"Expected prefix {expected_bin}, got {most_probable}"
     
+    """
     # Generate filename and save histogram
     filename = f"histogram_{test_id}.png"
     plot_histogram(counts).savefig(filename)
@@ -58,6 +59,7 @@ def test_general_qpe_with_parametrized_phase(phase, expected_bin):
     # Log data
     with open(LOG_FILE, "a") as log_file:
         log_file.write(f"{filename},{phase},{num_ancilla},{most_probable},{estimated_phase},{test_id}\n")
+    """
     
 # Sanity check but with varying number of ancilla qubits
 ANCILLA_VALUES = [4]
