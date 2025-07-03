@@ -1,0 +1,869 @@
+<html>
+    <head>
+        <title>Comprehensive QPE Report</title>
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            h1, h2, h3 { color: #333; }
+            .section { padding: 20px; border-bottom: 1px solid #ccc; }
+            .section:nth-of-type(even) { background-color: #f5f5f5; }
+            .container { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+            .item { flex: 1; min-width: 250px; }
+            .item img { max-width: 100%; display: block; margin: 0 auto; }
+            .header { font-weight: bold; font-size: 1.1em; }
+            .label { text-align: center; font-style: italic; margin-top: 5px; }
+            .matrix-container { display: flex; flex-direction: column; gap: 15px; }
+            .matrix-container h3 { margin-bottom: 5px; }
+        </style>
+    </head>
+    <body>
+    <h1>Quantum Phase Estimation - Report</h1>
+    
+    <div class=\"section\">
+      <h2>Exact Eigenvalue Estimation of Hermitian Matrices</h2>
+
+      <p>Let \( H \) be a Hermitian matrix. Let \( |\lambda\rangle \) be an eigenvector of \( H \) with eigenvalue \( \lambda \) \( \implies e^{iHt}|\lambda\rangle = e^{i\lambda t}|\lambda\rangle \)</p>
+
+      <p>Of course, the measurements of QPE will <em>not</em> give us a direct approximation of \( \lambda \), but rather of some "phase" \( \theta \) such that:</p>
+
+      <p>$$ e^{i\lambda t} = e^{i\theta} \implies \lambda = \frac{\theta}{t}$$</p>
+
+
+      <p>Recall that if the phase \( \theta \) happens to be of the form \(\frac{2\pi k}{2^n} \) then we can measure the ancilla qubits and get \( k \) exactly.</p>
+
+      <p>We can "force" this to happen. Let us say we pre-compute all eigenvalues \( \lambda_1, \ldots, \lambda_n \) of \( H \) and want to estimate the eigenvalue \( \lambda_i \). Well, we can simply choose \( t \) such that:</p>
+
+      <p>$$ \lambda_i = \frac{2\pi k}{t 2^n} $$</p>
+
+      <p>This is equivalent to choosing:</p>
+
+      <p>$$ t = \frac{2\pi k}{\lambda_i 2^n} $$</p>
+
+      <hr>
+    
+                <div class="section">
+                  <div class="matrix-container">
+                    <h3>Hamiltonian used for this simulation</h3>
+                    <div class="item">
+                      <h4>Tensor Product Form:</h4>
+                      <p>$$ -1.2 \cdot Z \otimes Z + -1.2 \cdot Z \otimes Z + -1.0 \cdot X \otimes I + -1.0 \cdot I \otimes X $$</p>
+                    </div>
+                    <div class="item">
+                      <h4>Matrix Form:</h4>
+                      <p>$$ \left[\begin{matrix}-2.4 & -1.0 & -1.0 & 0\\-1.0 & 2.4 & 0 & -1.0\\-1.0 & 0 & 2.4 & -1.0\\0 & -1.0 & -1.0 & -2.4\end{matrix}\right] $$</p>
+                    </div>
+                  </div>
+                </div>
+                
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: -0.2513998258660903 | Ancilla: 3</h3>
+                  <p>Expected Binary: 001</p>
+                  <p>Measured: 001</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_e516c7de.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_e516c7de.png" alt="Histogram">
+                  <div class="label">Results for Exact Phase Estimation</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: -0.5027996517321806 | Ancilla: 3</h3>
+                  <p>Expected Binary: 010</p>
+                  <p>Measured: 010</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_446d0d8f.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_446d0d8f.png" alt="Histogram">
+                  <div class="label">Results for Exact Phase Estimation</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: -0.7541994775982708 | Ancilla: 3</h3>
+                  <p>Expected Binary: 011</p>
+                  <p>Measured: 011</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_0b010235.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_0b010235.png" alt="Histogram">
+                  <div class="label">Results for Exact Phase Estimation</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: -1.005599303464361 | Ancilla: 3</h3>
+                  <p>Expected Binary: 100</p>
+                  <p>Measured: 100</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_bc574fe5.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_bc574fe5.png" alt="Histogram">
+                  <div class="label">Results for Exact Phase Estimation</div>
+                </div>
+              </div>
+            </div>
+            
+    <div class=\"section\">
+      <h2>Approximate Eigenvalue Estimation of Hermitian Matrices</h2>
+      <p>
+      We aim to estimate the eigenvalues of a Hermitian matrix \( H \) using QPE.
+      $$ e^{iHt} | \lambda \rangle = e^{2 \pi i \varphi} | \lambda \rangle $$
+      $$ \lambda = \frac{2 \pi \varphi}{t} $$
+      </p>
+      <hr>
+    
+                <div class="section">
+                  <div class="matrix-container">
+                    <h3>Hamiltonian used for this simulation</h3>
+                    <div class="item">
+                      <h4>Tensor Product Form:</h4>
+                      <p>$$ -1.2 \cdot Z \otimes Z + -1.2 \cdot Z \otimes Z + -1.0 \cdot X \otimes I + -1.0 \cdot I \otimes X $$</p>
+                    </div>
+                    <div class="item">
+                      <h4>Matrix Form:</h4>
+                      <p>$$ \left[\begin{matrix}-2.4 & -1.0 & -1.0 & 0\\-1.0 & 2.4 & 0 & -1.0\\-1.0 & 0 & 2.4 & -1.0\\0 & -1.0 & -1.0 & -2.4\end{matrix}\right] $$</p>
+                    </div>
+                  </div>
+                </div>
+                
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.01 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.00382</p>
+                  <p>Expected bitstring: (00000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.0</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 0.0</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_4c5a562f.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_4c5a562f.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_4c5a562f.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.05 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0191</p>
+                  <p>Expected bitstring: (00001)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00001</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.03125</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 3.92699</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_f76379ac.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_f76379ac.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_f76379ac.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.1 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0382</p>
+                  <p>Expected bitstring: (00001)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00001</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.03125</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 1.9635</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_a4600b83.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_a4600b83.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_a4600b83.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.5 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.19099</p>
+                  <p>Expected bitstring: (00110)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00110</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.1875</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 2.35619</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_ada69379.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_ada69379.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_ada69379.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 1.0 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.38197</p>
+                  <p>Expected bitstring: (01100)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 01100</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.375</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 2.35619</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_d679edbd.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_d679edbd.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_d679edbd.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.01 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): -3.1241</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.99503</p>
+                  <p>Expected bitstring: (100000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.0</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 0.0</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_f96bff3c.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_f96bff3c.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_f96bff3c.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.05 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): -3.1241</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.97514</p>
+                  <p>Expected bitstring: (11111)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 11111</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): -0.03125</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): -3.92699</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_dcae0d1d.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_dcae0d1d.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_dcae0d1d.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.1 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): -3.1241</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.95028</p>
+                  <p>Expected bitstring: (11110)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 11110</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): -0.0625</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): -3.92699</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_8596eb7e.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_8596eb7e.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_8596eb7e.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.5 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): -3.1241</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.75139</p>
+                  <p>Expected bitstring: (11000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 11000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): -0.25</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): -3.14159</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_f2b1e17c.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_f2b1e17c.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_f2b1e17c.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 1.0 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): -3.1241</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.50278</p>
+                  <p>Expected bitstring: (10000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 10000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): -0.5</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): -3.14159</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_713e4d6d.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_713e4d6d.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_713e4d6d.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            
+    <div class=\"section\">
+        <h2>qDRIFT Simulation</h2>
+    
+                <div class="section">
+                  <div class="matrix-container">
+                    <h3>Hamiltonian used for this simulation</h3>
+                    <div class="item">
+                      <h4>Tensor Product Form:</h4>
+                      <p>$$ -1.2 \cdot Z \otimes Z + -1.2 \cdot Z \otimes Z + -1.0 \cdot X \otimes I + -1.0 \cdot I \otimes X $$</p>
+                    </div>
+                    <div class="item">
+                      <h4>Matrix Form:</h4>
+                      <p>$$ \left[\begin{matrix}-2.4 & -1.0 & -1.0 & 0\\-1.0 & 2.4 & 0 & -1.0\\-1.0 & 0 & 2.4 & -1.0\\0 & -1.0 & -1.0 & -2.4\end{matrix}\right] $$</p>
+                    </div>
+                  </div>
+                </div>
+                
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.01 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.00382</p>
+                  <p>Expected bitstring: (00000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.0</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 0.0</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_fa4964fa.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_fa4964fa.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_fa4964fa.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.05 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0191</p>
+                  <p>Expected bitstring: (00001)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00001</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.03125</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 3.92699</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_7d4c98a2.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_7d4c98a2.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_7d4c98a2.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.1 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0382</p>
+                  <p>Expected bitstring: (00001)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 00000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.0</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 0.0</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_ecf4bb5e.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_ecf4bb5e.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_ecf4bb5e.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.5 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.19099</p>
+                  <p>Expected bitstring: (00110)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 01100</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.375</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 4.71239</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_c17d2e15.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_c17d2e15.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_c17d2e15.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 1.0 | Shots: 10000 | Ancilla: 5</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.38197</p>
+                  <p>Expected bitstring: (01100)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 10010</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.5625</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 3.53429</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_455b2ccb.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_455b2ccb.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_455b2ccb.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.01 | Shots: 10000 | Ancilla: 6</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.00382</p>
+                  <p>Expected bitstring: (000000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 000000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.0</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 0.0</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_569489f7.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_569489f7.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_569489f7.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.05 | Shots: 10000 | Ancilla: 6</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0191</p>
+                  <p>Expected bitstring: (000001)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 000001</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.01562</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 1.9635</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_e8767ca2.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_e8767ca2.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_e8767ca2.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.1 | Shots: 10000 | Ancilla: 6</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0382</p>
+                  <p>Expected bitstring: (000010)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 000001</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.01562</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 0.98175</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_b7d6277c.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_b7d6277c.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_b7d6277c.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.5 | Shots: 10000 | Ancilla: 6</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.19099</p>
+                  <p>Expected bitstring: (001100)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 011000</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.375</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 4.71239</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_c64d145a.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_c64d145a.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_c64d145a.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 1.0 | Shots: 10000 | Ancilla: 6</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.38197</p>
+                  <p>Expected bitstring: (011000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 101101</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.70312</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 4.41786</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_1c999db6.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_1c999db6.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_1c999db6.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.01 | Shots: 10000 | Ancilla: 7</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.00382</p>
+                  <p>Expected bitstring: (0000000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 0000001</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.00781</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 4.90874</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_0a59b426.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_0a59b426.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_0a59b426.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.05 | Shots: 10000 | Ancilla: 7</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0191</p>
+                  <p>Expected bitstring: (0000010)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 0000011</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.02344</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 2.94524</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_59fa4bf4.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_59fa4bf4.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_59fa4bf4.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.1 | Shots: 10000 | Ancilla: 7</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.0382</p>
+                  <p>Expected bitstring: (0000101)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 0000101</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.03906</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 2.45437</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_1e4f8d18.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_1e4f8d18.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_1e4f8d18.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 0.5 | Shots: 10000 | Ancilla: 7</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.19099</p>
+                  <p>Expected bitstring: (0011000)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 0111110</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.48438</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 6.08684</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_a1959199.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_a1959199.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_a1959199.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            
+            <div class="section">
+              <div class="container">
+                <div class="item">
+                  <h3>Time: 1.0 | Shots: 10000 | Ancilla: 7</h3>
+                  <p>Exact energy (\(\lambda\)): 2.4</p>
+                  <p>Exact expected phase (\(\frac{\lambda \cdot t}{2 \cdot \pi} \mod 1\)): 0.38197</p>
+                  <p>Expected bitstring: (0110001)</p>
+
+                  <p>Most common measured bitstring (\(k\)): 1011110</p>
+                  <p>Phase (\(\frac{k}{2^n}\)): 0.73438</p>
+                  <p>Estimated Energy (\(\frac{2 \cdot \pi \cdot \varphi}{t}\)): 4.61421</p>
+                </div>
+                <div class="item">
+                  <img src="circuit_d19402de.png" alt="Circuit Diagram">
+                  <div class="label">Quantum Circuit Diagram</div>
+                </div>
+                <div class="item">
+                  <img src="histogram_d19402de.png" alt="Histogram">
+                  <div class="label">Results for 10000 shots</div>
+                </div>
+                <div class="item">
+                  <img src="unit_circle_d19402de.png" alt="Unit Circle">
+                  <div class="label">Complex Unit Circle</div>
+                </div> 
+                </div>
+            </div>
+            <hr>
+            </body></html>
