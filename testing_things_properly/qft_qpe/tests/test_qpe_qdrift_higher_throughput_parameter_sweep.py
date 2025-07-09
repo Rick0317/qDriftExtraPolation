@@ -2,14 +2,15 @@ import os
 import numpy as np
 from qiskit.quantum_info import Operator, SparsePauliOp
 from qiskit.circuit.library import PhaseGate
-from sane_applications.qft_qpe.algos import generate_ising_hamiltonian, prepare_eigenstate_circuit, qdrift_qpe_extra_random, qdrift_qpe, qdrift_qpe_chat_gpts_take, generate_random_hamiltonian_with_pauli_tensor_structure, deterministic_qpe_qdrift_with_error_budget
+from testing_things_properly.qft_qpe.algos import generate_ising_hamiltonian, prepare_eigenstate_circuit, qdrift_qpe_extra_random, qdrift_qpe, qdrift_qpe_chat_gpts_take, generate_random_hamiltonian_with_pauli_tensor_structure, deterministic_qpe_qdrift_with_error_budget
 from qiskit_aer import AerSimulator
 from qiskit import transpile, QuantumCircuit
 from qiskit.visualization import plot_histogram
+from testing_things_properly.qft_qpe.tests_basic_behavious_and_depricated_functionality.test_qpe_general import process_qpe_results
 import pytest
+from scripts.algo.chebyshev import chebyshev_nodes
 import pandas as pd
 import csv
-from line_profiler import profile
 from typing import Callable, Tuple
 import inspect
 import datetime
@@ -33,25 +34,30 @@ matrix = rand_pauli.to_matrix()
 eigenvalues, eigenvectors = np.linalg.eig(matrix)
 assert np.all(np.isreal(eigenvalues)), "Eigenvalues are not all real!"
 
+chebyshev_nodes10 = np.array(chebyshev_nodes(8))
+scaled_neg = -0.03 - (0.4 - 0.03) * (-chebyshev_nodes10[4:])
+scaled_pos = 0.03 + (0.4 - 0.03) * np.array(chebyshev_nodes10[:4])
+TIME_VALUES = np.concatenate([scaled_neg, scaled_pos]) # list(np.logspace(-3, 1.5, num=10))
 # HAMILTONIANS = [("Ising", generate_ising_hamiltonian(NUM_QUBITS, J, G)), ("Simple Z",     SparsePauliOp(["Z"*NUM_QUBITS], coeffs=[1.0]))]
-HAMILTONIANS = [("Ising", generate_ising_hamiltonian(NUM_QUBITS, J, G))]
-RANDOMNESS = [(1, 1024)]  # (num_random_circuits, num_shots_per_circuit)
-ANCILLA_VALUES = [6, 8, 10, 12]  # Number of ancilla qubits
-TIME_VALUES = list(np.logspace(-3, 1.5, num=100))
+HAMILTONIANS = [("Simple Z", SparsePauliOp(["Z"*NUM_QUBITS], coeffs=[np.pi / (4 * t)])) for t in TIME_VALUES ]
+RANDOMNESS = [(1024, 1)]  # (num_random_circuits, num_shots_per_circuit)
+ANCILLA_VALUES = [6]  # Number of ancilla qubits
 
 @pytest.mark.parametrize("qdrift_impl", QDRIFT_IMPLEMENTATIONS)
 @pytest.mark.parametrize("calculate_ground_state", [False])
-@pytest.mark.parametrize("H", HAMILTONIANS)
+# @pytest.mark.parametrize("H", HAMILTONIANS)
 @pytest.mark.parametrize("num_random_circuits_and_num_shots_per_circuit", RANDOMNESS,
                          ids=lambda p: f"{p[0]}circ_{p[1]}shots")
 @pytest.mark.parametrize("num_ancilla", ANCILLA_VALUES, ids=lambda v: f"qubit{v}")
 @pytest.mark.parametrize("total_simulation_time", TIME_VALUES)
 
 
-def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl: Tuple[Callable, str], num_random_circuits_and_num_shots_per_circuit, calculate_ground_state: bool, H: SparsePauliOp):
+def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl: Tuple[Callable, str], num_random_circuits_and_num_shots_per_circuit, calculate_ground_state: bool):
     """Test QPE with Ising Hamiltonian (General Case) and log Hamiltonian representations."""
     # Generate Ising Hamiltonian
-    type_of_hamiltonian, H = H
+    # Jt = np.sqrt((np.pi / (4 * total_simulation_time)) ** 2 - 4 * G ** 2) / 2
+    # print(f"Jt: {Jt}")
+    type_of_hamiltonian, H = ("Ising", generate_ising_hamiltonian(NUM_QUBITS, J, G))
     num_random_circuits, num_shots_per_circuit = num_random_circuits_and_num_shots_per_circuit
     matrix = H.to_matrix()
     eigenvalues, eigenvectors = np.linalg.eig(matrix)
@@ -68,7 +74,7 @@ def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl
         first_positive_eigenvalue = max(eigenvalues)
         eigenvector_index = np.where(eigenvalues == first_positive_eigenvalue)[0][0]
         eigenstate = eigenvectors[:, eigenvector_index]
-    
+
     # Prepare the eigenstate circuit
     eigenstate_circuit = prepare_eigenstate_circuit(eigenstate)
 
@@ -80,7 +86,7 @@ def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl
     results = []
     simulator = AerSimulator()
     for rand_circuit in range(num_random_circuits):
-        qc = generate_qdrift_circuit(H, eigenstate=eigenstate_circuit, time=total_simulation_time, num_qubits=NUM_QUBITS, num_ancilla=num_ancilla)
+        qc = generate_qdrift_circuit(H, eigenstate=eigenstate_circuit, time=total_simulation_time, num_qubits=NUM_QUBITS, num_ancilla=num_ancilla, N=1)
         # Simulate the circuit
         compiled_circuit = transpile(qc, simulator)
         result = simulator.run(compiled_circuit, shots=num_shots_per_circuit).result()
@@ -106,9 +112,9 @@ def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl
         "Num Qubits", "Time", "Shots", "Num Ancilla",
         "Exact Eigenvalue", "Expected Phase",
         "Most Probable Bitstring", "Estimated Phase",
-        "Estimated Eigenvalue", "Eigenvalue Error", "Alpha", "QDRIFT Implementation", 
+        "Estimated Eigenvalue", "Eigenvalue Error", "Alpha", "QDRIFT Implementation",
         "type of Hamiltonian", "Num Random Circuits", "Num Shots per Circuit", "Circuit Depth",
-        "Raw results" 
+        "Raw results"
     ]
     row = [
         NUM_QUBITS, total_simulation_time, num_random_circuits * num_shots_per_circuit, num_ancilla,
@@ -131,7 +137,7 @@ def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl
 
 
 
-    
+
 '''
 def test_qdrift_qpe_extra_random(tot_simulation_time, num_ancilla, num_samples):
     H = generate_ising_hamiltonian(NUM_QUBITS, J, G)

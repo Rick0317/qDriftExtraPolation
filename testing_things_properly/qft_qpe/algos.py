@@ -16,7 +16,6 @@ from sympy import Matrix, latex
 from IPython.display import display, Math
 from qiskit.quantum_info import Pauli, SparsePauliOp, Operator
 from qiskit.circuit.library import Initialize
-from line_profiler import profile
 
 # import basic plot tools
 from qiskit.visualization import plot_histogram
@@ -30,11 +29,10 @@ Hamiltonian = list[tuple[coefficient, Pauli]]
 
 # ---------------------------------------------------- utils ----------------------------------------------------
 
-@profile
 def generate_ising_hamiltonian(num_qubits: int, J, g) -> SparsePauliOp:
     z_terms = []
     z_coeffs = []
-    
+
     # ZZ interaction terms
     for j in range(num_qubits):
         pauli_string = ['I'] * num_qubits
@@ -45,7 +43,7 @@ def generate_ising_hamiltonian(num_qubits: int, J, g) -> SparsePauliOp:
 
     x_terms = []
     x_coeffs = []
-    
+
     # X field terms
     for j in range(num_qubits):
         pauli_string = ['I'] * num_qubits
@@ -76,11 +74,10 @@ def calculate_ground_state_and_energy(H: SparsePauliOp) -> List[complex]:
     ground_energy = np.min(eigenvalues)
     return ground_state, ground_energy
 
-@profile
 def prepare_eigenstate_circuit(ground_state: np.ndarray) -> QuantumCircuit:
     """
     Prepare a quantum circuit that initializes the ground state.
-    
+
     Args:
         ground_state (np.ndarray): State vector representing the ground state.
 
@@ -109,7 +106,7 @@ def prepare_eigenstate_circuit(ground_state: np.ndarray) -> QuantumCircuit:
 def generate_random_hamiltonian_with_pauli_tensor_structure(num_qubits: int, num_terms: int) -> SparsePauliOp:
     """
     Generates a random Hamiltonian with a specified number of Pauli terms.
-    
+
     Args:
         num_qubits (int): Number of qubits in the Hamiltonian.
         num_terms (int): Number of Pauli terms in the Hamiltonian.
@@ -132,7 +129,7 @@ def generate_random_hamiltonian_with_pauli_tensor_structure(num_qubits: int, num
 # -------------------------------------------------------------------------- Non-stochastic QPE -----------------------------
 def generate_qpe_circuit_simple(total_qubits, phase):
     """
-    Assumptions: 
+    Assumptions:
     - The target unitary acts on *one* qubit (the last one)
     - The target unitary is a phase gate:
         P(\theta) =
@@ -147,21 +144,20 @@ def generate_qpe_circuit_simple(total_qubits, phase):
 
     for qubit in range(num_ancilla):
         qpe.h(qubit)
-        
+
     repetitions = 1
     for counting_qubit in range(num_ancilla):
         for i in range(repetitions):
             qpe.cp(phase, counting_qubit, num_ancilla); # Apply C-PhaseGate to last qubit (target qubit) controlled by counting qubit
         repetitions *= 2
-        
+
     # Apply the inverse QFT
     list_of_ancilla_qubits = [i for i in range(num_ancilla)]
-    qpe.append(QFT(3, inverse=True), list_of_ancilla_qubits) 
+    qpe.append(QFT(3, inverse=True), list_of_ancilla_qubits)
 
     qpe.measure(list_of_ancilla_qubits, list_of_ancilla_qubits) # Measure the ancilla qubits
     return qpe
 
-@profile
 def standard_qpe(unitary: Operator, eigenstate: QuantumCircuit, num_ancilla: int) -> QuantumCircuit:
     """Constructs a standard Quantum Phase Estimation (QPE) circuit using repeated controlled-U applications."""
     num_qubits = unitary.num_qubits
@@ -176,9 +172,9 @@ def standard_qpe(unitary: Operator, eigenstate: QuantumCircuit, num_ancilla: int
     # Apply controlled-U^(2^k) using repeated controlled applications of U
     for k in tqdm(range(num_ancilla), desc="Applying controlled-U powers"):
         controlled_U = UnitaryGate(unitary.data).control(1, label=f"U")
-        
+
         # Apply controlled-U 2^k times
-        for _ in range(2**k):  
+        for _ in range(2**k):
             qc.append(controlled_U, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
 
     # Apply inverse QFT on ancilla qubits
@@ -194,17 +190,17 @@ def qdrift_sample_naive(hamiltonian: SparsePauliOp, time: float, num_samples: in
     # Extract coefficients and Pauli strings
     coeffs_absolute_values = np.abs(hamiltonian.coeffs)
     paulis = hamiltonian.paulis.to_labels()
-    
+
     # Calculate lambda and tau
     lam = np.sum(coeffs_absolute_values)
     tau = time * lam / num_samples
-    
+
     # Define sampling distribution
     pmf = coeffs_absolute_values / lam
-    
+
     sampled_unitaries = []
     labels = []
-    
+
     # Sample based on the distribution
     for _ in range(num_samples):
         idx = random.choices(population=range(len(paulis)), weights=pmf, k=1)[0]
@@ -219,14 +215,14 @@ def qdrift_sample_naive(hamiltonian: SparsePauliOp, time: float, num_samples: in
         unitary = exponentiate_hamiltonian(h_j, tau)
 
         sampled_unitaries.append(unitary)
-        
+
         # Label for visualization
         labels.append(f"$e^{{i \\tau {pauli_string}}}$")
-    
+
     return sampled_unitaries, labels
 
 # Function to perform qDRIFT-based QPE
-def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: int, num_ancilla: int):
+def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: int, num_ancilla: int, N: int) -> Tuple[List[SparsePauliOp], List[str]]:
     qc = QuantumCircuit(num_ancilla + num_qubits, num_ancilla)
 
     # Initialize the eigenstate
@@ -237,7 +233,7 @@ def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: 
         eigenstate_circuit = eigenstate
 
     qc.append(eigenstate_circuit, range(num_ancilla, num_ancilla + num_qubits))
-    
+
     # Apply QFT to ancilla qubits
     qc.append(QFT(num_ancilla), range(num_ancilla))
     k = 0
@@ -245,17 +241,17 @@ def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: 
     for k in tqdm(range(num_ancilla), desc=f"Ancilla layer (k={k})"):
         for _ in range(2 ** k):
             # Sample unitaries using the new qdrift_sample function
-            sampled_unitaries, labels = qdrift_sample_naive(hamiltonian, time, num_samples=1)
+            sampled_unitaries, labels = qdrift_sample_naive(hamiltonian, time, num_samples=N)
             for unitary, label in zip(sampled_unitaries, labels):
                 controlled_unitary = UnitaryGate(unitary, label=label).control(1)
                 qc.append(controlled_unitary, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
-    
+
     # Apply inverse QFT
     qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
-    
+
     # Measure the ancilla qubits
     qc.measure(range(num_ancilla), range(num_ancilla))
-    
+
     return qc
 
 
@@ -270,10 +266,10 @@ def qdrift_qpe_chat_gpts_take(hamiltonian: SparsePauliOp, time: float, eigenstat
         eigenstate_circuit = eigenstate
 
     qc.append(eigenstate_circuit, range(num_ancilla, num_ancilla + num_qubits))
-    
+
     # Apply QFT to ancilla qubits
     qc.append(QFT(num_ancilla), range(num_ancilla))
-    
+
     # Loop over ancilla bits
     for k in range(num_ancilla):
         # Sample 2^k QDrift steps once
@@ -288,22 +284,22 @@ def qdrift_qpe_chat_gpts_take(hamiltonian: SparsePauliOp, time: float, eigenstat
         controlled_U = UnitaryGate(full_unitary, label=f"QDrift^{2**k}").control(1)
         qc.append(controlled_U, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
 
-    
+
     # Apply inverse QFT
     qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
-    
+
     # Measure the ancilla qubits
     qc.measure(range(num_ancilla), range(num_ancilla))
-    
+
     return qc
 
 
-def qdrift_qpe_extra_random(hamiltonian: SparsePauliOp, 
-                            eigenstate:Union[QuantumCircuit, np.array], 
-                            num_qubits: int, num_ancilla: int, 
-                            total_simulation_time, 
+def qdrift_qpe_extra_random(hamiltonian: SparsePauliOp,
+                            eigenstate:Union[QuantumCircuit, np.array],
+                            num_qubits: int, num_ancilla: int,
+                            total_simulation_time,
                             num_samples: int = 1000000) -> QuantumCircuit:
-    
+
     qc = QuantumCircuit(num_ancilla + num_qubits, num_ancilla)
 
     # Initialize the eigenstate
@@ -313,7 +309,7 @@ def qdrift_qpe_extra_random(hamiltonian: SparsePauliOp,
     else:
         eigenstate_circuit = eigenstate
     qc.append(eigenstate_circuit, range(num_ancilla, num_ancilla + num_qubits))
-    
+
     # Apply QFT to ancilla qubits
     qc.append(QFT(num_ancilla), range(num_ancilla))
 
@@ -322,7 +318,7 @@ def qdrift_qpe_extra_random(hamiltonian: SparsePauliOp,
     tau = total_simulation_time * lam / num_samples
     direct_access_table_of_unitaries = [] # this is so we don't have to recompute the same matrix exponential multiple times
 
-    # Note: the direct_access_table optimization was not incorporated before bcause a) I didn't think of it 
+    # Note: the direct_access_table optimization was not incorporated before bcause a) I didn't think of it
     # and b) if we only sample a few unitaries (or just one), the overhead of computing the matrix exponentials is not that high.
 
     for coeff, pauli in zip(hamiltonian.coeffs, hamiltonian.paulis.to_labels()):
@@ -332,7 +328,7 @@ def qdrift_qpe_extra_random(hamiltonian: SparsePauliOp,
             h_j = SparsePauliOp([pauli], [1.0])
         unitary = exponentiate_hamiltonian(h_j, tau)
         direct_access_table_of_unitaries.append(unitary)
-    
+
     qdrift_pmf = np.abs(hamiltonian.coeffs) / lam
     for k in tqdm(range(num_ancilla), desc="Applying qDRIFT unitaries"):
         for _ in range(2 ** k):
@@ -340,7 +336,7 @@ def qdrift_qpe_extra_random(hamiltonian: SparsePauliOp,
             unitary = direct_access_table_of_unitaries[idx]
             controlled_unitary = UnitaryGate(unitary, label=f"QDrift_{k}").control(1)
             qc.append(controlled_unitary, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
-    
+
     # Apply inverse QFT
     qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
 
@@ -384,7 +380,6 @@ def compute_qdrift_Nj_list(
     return N_list
 
 
-@profile
 def generate_fixed_qdrift_unitary_for_layer(
     hamiltonian: SparsePauliOp,
     layer_index: int,
@@ -438,7 +433,6 @@ def generate_fixed_qdrift_unitary_for_layer(
 
 # -------------------------------------------------------------------------- QPE builder ------------------------------------------------------------
 
-@profile
 def deterministic_qpe_qdrift_with_error_budget(
     hamiltonian: SparsePauliOp,
     epsilon_total: float,
