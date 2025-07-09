@@ -3,13 +3,13 @@ import os
 import numpy as np
 from qiskit.quantum_info import Operator
 from qiskit.circuit.library import PhaseGate
-from sane_applications.qft_qpe.algos import standard_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, calculate_ground_state_and_energy
+from testing_things_properly.qft_qpe.algos import standard_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, calculate_ground_state_and_energy
 from qiskit_aer import AerSimulator
 from qiskit import transpile, QuantumCircuit
 from qiskit.visualization import plot_histogram
 import pytest
 import math
-from random_cool_trinkets.utils import hamiltonian_explicit, hamiltonian_simplified, format_hamiltonian_matrix_as_latex, plot_complex_unit_circle
+from testing_things_properly.qft_qpe.tests_basic_behavious_and_depricated_functionality.utils import hamiltonian_explicit, hamiltonian_simplified, format_hamiltonian_matrix_as_latex, plot_complex_unit_circle
 import uuid
 
 # Setup for the test environment
@@ -47,7 +47,7 @@ def test_general_qpe_with_parametrized_phase(phase, expected_bin):
     estimated_decimal = int(most_probable, 2) / (2 ** num_ancilla)
     estimated_phase = 2 * math.pi * estimated_decimal
     assert most_probable.startswith(expected_bin), f"Expected prefix {expected_bin}, got {most_probable}"
-    
+
     """
     # Generate filename and save histogram
     filename = f"histogram_{test_id}.png"
@@ -60,7 +60,7 @@ def test_general_qpe_with_parametrized_phase(phase, expected_bin):
     with open(LOG_FILE, "a") as log_file:
         log_file.write(f"{filename},{phase},{num_ancilla},{most_probable},{estimated_phase},{test_id}\n")
     """
-    
+
 # Sanity check but with varying number of ancilla qubits
 ANCILLA_VALUES = [4]
 @pytest.mark.parametrize("phase, expected_bin, num_ancilla", [(2 * math.pi * k / 2**n, bin(k)[2:].zfill(n), n) for n in ANCILLA_VALUES for k in range(1, 2**n) ])
@@ -83,7 +83,7 @@ def test_generat_qpe_with_parametrized_phase_and_ancilla(phase, expected_bin, nu
 
     # Determine the most probable bitstring
     most_probable = max(counts, key=counts.get)
-    
+
     # Assert that the most probable bitstring starts with the expected prefix
     assert most_probable.startswith(expected_bin), f"Expected prefix {expected_bin}, got {most_probable}"
 
@@ -122,7 +122,7 @@ def test_qpe_ising_hamiltonian_general_case_positive_phase(time, shots, num_anci
     # Expected phase calculation
     expected_phase = (first_positive_eigenvalue.real * time) / (2 * np.pi) % 1
     expected_bitstring = bin(round(expected_phase * (2 ** num_ancilla)))[2:].zfill(num_ancilla)
-    
+
     # Exponentiate the Hamiltonian
     U = exponentiate_hamiltonian(H, time)
 
@@ -186,7 +186,7 @@ def test_qpe_ising_hamiltonian_general_case_negative_phase(time, shots, num_anci
 
     # Expected phase calculation
     expected_phase = (first_negative_eigenvalue.real * time) / (2 * np.pi) % 1
-    
+
     expected_bitstring = bin(round(expected_phase * (2 ** num_ancilla)))[2:].zfill(num_ancilla)
 
     # Exponentiate the Hamiltonian
@@ -204,7 +204,7 @@ def test_qpe_ising_hamiltonian_general_case_negative_phase(time, shots, num_anci
 
     # Determine the most probable bitstring
     most_probable, estimated_phase, estimated_energy = process_qpe_results(time, num_ancilla, counts)
-    
+
     # Save histogram
     filename = f"histogram_{test_id}.png"
     plot_histogram(counts).savefig(filename)
@@ -286,5 +286,5 @@ def test_qpe_ising_hamiltonian_exact_phases(num_ancilla, k):
     # Log data
     with open(LOG_FILE, "a") as log_file:
         log_file.write(f"exact phase,{filename},{t},{num_ancilla},{most_probable},{expected_bin},{hamiltonian_tensor},{hamiltonian_simplified_repr},{hamiltonian_matrix},{test_id}\n")
-    
+
     assert most_probable.startswith(expected_bin), f"Expected prefix {expected_bin}, got {most_probable}"

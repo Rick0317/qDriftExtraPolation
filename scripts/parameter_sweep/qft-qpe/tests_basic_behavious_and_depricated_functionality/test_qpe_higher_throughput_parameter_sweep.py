@@ -3,7 +3,7 @@ import os
 import numpy as np
 from qiskit.quantum_info import Operator, SparsePauliOp
 from qiskit.circuit.library import PhaseGate
-from sane_applications.qft_qpe.algos import standard_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, qdrift_qpe_extra_random, qdrift_qpe, qdrift_qpe_chat_gpts_take
+from testing_things_properly.qft_qpe.algos import standard_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, qdrift_qpe_extra_random, qdrift_qpe, qdrift_qpe_chat_gpts_take
 from qiskit_aer import AerSimulator
 from qiskit import transpile, QuantumCircuit
 from qiskit.visualization import plot_histogram
@@ -11,7 +11,6 @@ import pytest
 import math
 import pandas as pd
 import csv
-from line_profiler import profile
 from typing import Callable, Tuple
 import inspect
 import datetime
@@ -35,7 +34,7 @@ ANCILLA_VALUES = [5, 10]  # Number of ancilla qubits
 
 
 
-    
+
 
 def test_qpe_ising_hamiltonian_general_case_positive(time, shots, num_ancilla):
     """Test QPE with Ising Hamiltonian (General Case) and log Hamiltonian representations."""
@@ -51,7 +50,7 @@ def test_qpe_ising_hamiltonian_general_case_positive(time, shots, num_ancilla):
     # Expected phase calculation
     expected_phase = (first_positive_eigenvalue.real * time) / (2 * np.pi) % 1
     expected_bitstring = bin(round(expected_phase * (2 ** num_ancilla)))[2:].zfill(num_ancilla)
-    
+
 
     # Exponentiate the Hamiltonian
     U = exponentiate_hamiltonian(H, time)

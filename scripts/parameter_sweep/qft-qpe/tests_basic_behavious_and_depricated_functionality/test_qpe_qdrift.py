@@ -1,4 +1,4 @@
-from algos import qdrift_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, calculate_ground_state_and_energy
+from testing_things_properly.qft_qpe.algos import qdrift_qpe, generate_ising_hamiltonian, exponentiate_hamiltonian, prepare_eigenstate_circuit, calculate_ground_state_and_energy
 from qiskit_aer import AerSimulator
 from qiskit import transpile, QuantumCircuit
 from qiskit.visualization import plot_histogram
