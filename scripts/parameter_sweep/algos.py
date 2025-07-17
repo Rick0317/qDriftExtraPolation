@@ -238,14 +238,14 @@ def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: 
     qc.append(QFT(num_ancilla), range(num_ancilla))
     k = 0
     # Controlled qDRIFT unitaries
-    for k in tqdm(range(num_ancilla), desc=f"Ancilla layer (k={k})"):
+    for k in tqdm(range(num_ancilla), desc=f"Setting up ancilla layer"):
         for _ in range(2 ** k):
             # Sample unitaries using the new qdrift_sample function
-
             sampled_unitaries, labels = qdrift_sample_naive(hamiltonian, time, num_samples=num_samples_per_channel_invocation)
             for unitary, label in zip(sampled_unitaries, labels):
                 controlled_unitary = UnitaryGate(unitary, label=label).control(1)
                 qc.append(controlled_unitary, [k] + list(range(num_ancilla, num_ancilla + num_qubits)))
+
 
     # Apply inverse QFT
     qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
