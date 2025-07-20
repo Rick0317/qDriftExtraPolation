@@ -1,7 +1,6 @@
 from qiskit import QuantumCircuit, transpile
 from qiskit.circuit.library import QFT, UnitaryGate
 from qiskit.quantum_info import Pauli, SparsePauliOp, Operator
-from qiskit_aer import Aer
 from qiskit.visualization import plot_histogram, circuit_drawer
 from typing import Optional, Union
 import random
