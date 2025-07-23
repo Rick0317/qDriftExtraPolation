@@ -34,7 +34,7 @@ class QPE_Result:
         self.mean_energy = None
         self.estimated_phase = None
         self.estimated_energy = None
-        
+
 
     def __str__(self):
         return f"QPE_Result(time={self.time}, num_ancilla={self.num_ancilla}, most_probable={self.most_likely_bitstring}, estimated_phase={self.estimated_phase}, estimated_energy={self.estimated_energy})"
@@ -60,7 +60,7 @@ def process_qpe_results(time, num_ancilla, counts) -> QPE_Result:
     qpe_results.estimated_phase = statistics.median(phases_flat)
     qpe_results.estimated_energy = statistics.median(energies_flat)
     return qpe_results
-   
+
 # Parameters for the Ising model
 NUM_QUBITS = 2
 J = 1.0
@@ -72,15 +72,14 @@ CSV_FILE_QDRIFT_QPE_ALL = f"qdrift_ising_model_6_nodes_{datetime.datetime.today(
 QDRIFT_IMPLEMENTATIONS = [(qdrift_qpe, "exponential invocations of qdrift channel")]
 
 
-chebyshev_nodes12 = np.array(chebyshev_nodes(12))
- # scaled_neg = -0.03 - (0.4 - 0.03) * (-chebyshev_nodes12[4:])
-scaled_pos = 0.01 + (0.8 - 0.01) * np.array(chebyshev_nodes12[:6])
+chebyshev_nodes12 = np.array(chebyshev_nodes(10))
+scaled_pos = 0.01 + (0.1 - 0.01) * np.array(chebyshev_nodes12[:5])
 TIME_VALUES = scaled_pos # list(np.logspace(-3, 1.5, num=10))
 HAMILTONIANS = [("Ising", generate_ising_hamiltonian(NUM_QUBITS, 0.5 * J, 0.5 * G))]
 # HAMILTONIANS = [("Simple Z", SparsePauliOp(["Z"*NUM_QUBITS], coeffs=[np.pi / (4 * t)])) for t in TIME_VALUES ]
-RANDOMNESS = [(100, 1)]  # (num_random_circuits, num_shots_per_circuit)
-ANCILLA_VALUES = [12]  # Number of ancilla qubits
-NUM_SEGMENTS_PER_INVOCATION = [1, 2, 10]
+RANDOMNESS = [(1024, 1)]  # (num_random_circuits, num_shots_per_circuit)
+ANCILLA_VALUES = [10]  # Number of ancilla qubits
+NUM_SEGMENTS_PER_INVOCATION = [1]
 @pytest.mark.parametrize("qdrift_impl", QDRIFT_IMPLEMENTATIONS)
 @pytest.mark.parametrize("calculate_ground_state", [False])
 @pytest.mark.parametrize("H", HAMILTONIANS)
@@ -96,6 +95,7 @@ def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl
     # Generate Ising Hamiltonian
     # Jt = np.sqrt((np.pi / (4 * total_simulation_time)) ** 2 - 4 * G ** 2) / 2
     # print(f"Jt: {Jt}")
+
     type_of_hamiltonian, H = H
     num_random_circuits, num_shots_per_circuit = num_random_circuits_and_num_shots_per_circuit
     matrix = H.to_matrix()

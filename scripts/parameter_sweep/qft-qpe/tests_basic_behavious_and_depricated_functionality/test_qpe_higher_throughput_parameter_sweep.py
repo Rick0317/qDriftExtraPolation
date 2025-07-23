@@ -2,7 +2,7 @@ import os
 import numpy as np
 from qiskit.quantum_info import Operator, SparsePauliOp
 from qiskit.circuit.library import PhaseGate
-from ..algos import generate_ising_hamiltonian, prepare_eigenstate_circuit, qdrift_qpe_extra_random, qdrift_qpe, generate_random_hamiltonian_with_pauli_tensor_structure
+from scripts.parameter_sweep.algos import generate_ising_hamiltonian, prepare_eigenstate_circuit, qdrift_qpe_extra_random, qdrift_qpe, generate_random_hamiltonian_with_pauli_tensor_structure
 from qiskit_aer import AerSimulator
 from qiskit import transpile, QuantumCircuit
 from qiskit.visualization import plot_histogram
@@ -48,7 +48,7 @@ CSV_FILE_QDRIFT_QPE_ALL = f"qdrift_ising_model_sweep_ultimate_2025-07-02.csv"  #
 QDRIFT_IMPLEMENTATIONS = [(qdrift_qpe, "exponential invocations of qdrift channel")]
 # HAMILTONIANS = [("Ising", generate_ising_hamiltonian(NUM_QUBITS, J, G)), ("Simple Z",     SparsePauliOp(["Z"*NUM_QUBITS], coeffs=[1.0]))]
 HAMILTONIANS = [("Ising", generate_ising_hamiltonian(NUM_QUBITS, J, G))]
-RANDOMNESS = [(1000, 1), (1, 1000)]  # (num_random_circuits, num_shots_per_circuit)
+RANDOMNESS = [(1000, 1)]  # (num_random_circuits, num_shots_per_circuit)
 ANCILLA_VALUES = [10, 12, 14, 16]  # Number of ancilla qubits
 TIME_VALUES = list(np.logspace(-4, 1, num=100))
 NUM_QDRIFT_SAMPLES_PER_CHANNEL_INVOCATION = [1, 10, 100]
@@ -84,7 +84,7 @@ def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl
         first_positive_eigenvalue = max(eigenvalues)
         eigenvector_index = np.where(eigenvalues == first_positive_eigenvalue)[0][0]
         eigenstate = eigenvectors[:, eigenvector_index]
-    
+
     # Prepare the eigenstate circuit
     eigenstate_circuit = prepare_eigenstate_circuit(eigenstate)
 
@@ -124,9 +124,9 @@ def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl
         "Num Qubits", "Time", "Shots", "Num Ancilla",
         "Exact Eigenvalue", "Expected Phase",
         "Most Probable Bitstring", "Estimated Phase",
-        "Estimated Eigenvalue", "Eigenvalue Error", "Alpha", "QDRIFT Implementation", 
+        "Estimated Eigenvalue", "Eigenvalue Error", "Alpha", "QDRIFT Implementation",
         "type of Hamiltonian", "Num Random Circuits", "Num Shots per Circuit", "Circuit Depth", "qDRIFT samples per invocation of qDRIFT channel"
-        "Raw results" 
+        "Raw results"
     ]
     row = [
         NUM_QUBITS, total_simulation_time, num_random_circuits * num_shots_per_circuit, num_ancilla,
