@@ -18,6 +18,10 @@ import psutil
 import time
 import os
 import statistics
+import json
+import numpy as np
+import hashlib
+
 
 class QPE_Result:
     def __init__(self, time, num_ancilla, counts):
@@ -66,21 +70,51 @@ NUM_QUBITS = 2
 J = 1.0
 G = 0.8
 
+chebyshev_nodes12 = np.array(chebyshev_nodes(14))
+ # scaled_neg = -0.03 - (0.4 - 0.03) * (-chebyshev_nodes12[4:])
+scaled_pos = 0.00005 + (0.6 - 0.00005) * np.array(chebyshev_nodes12[:7])
+
 #Log file for QDRIFT tests
 CSV_FILE_QDRIFT_QPE_ALL = f"qdrift_ising_model_6_nodes_{datetime.datetime.today().strftime('%Y-%m-%d')}.csv"  # New CSV file for QDRIFT tests
-
 QDRIFT_IMPLEMENTATIONS = [(qdrift_qpe, "exponential invocations of qdrift channel")]
 
-
-chebyshev_nodes12 = np.array(chebyshev_nodes(12))
- # scaled_neg = -0.03 - (0.4 - 0.03) * (-chebyshev_nodes12[4:])
-scaled_pos = 0.01 + (0.8 - 0.01) * np.array(chebyshev_nodes12[:6])
 TIME_VALUES = scaled_pos # list(np.logspace(-3, 1.5, num=10))
 HAMILTONIANS = [("Ising", generate_ising_hamiltonian(NUM_QUBITS, 0.5 * J, 0.5 * G))]
 # HAMILTONIANS = [("Simple Z", SparsePauliOp(["Z"*NUM_QUBITS], coeffs=[np.pi / (4 * t)])) for t in TIME_VALUES ]
-RANDOMNESS = [(100, 1)]  # (num_random_circuits, num_shots_per_circuit)
-ANCILLA_VALUES = [12]  # Number of ancilla qubits
-NUM_SEGMENTS_PER_INVOCATION = [1, 2, 10]
+RANDOMNESS = [(2000, 1), (1, 2000)]  # (num_random_circuits, num_shots_per_circuit)
+ANCILLA_VALUES = [11, 12]  # Number of ancilla qubits
+NUM_SEGMENTS_PER_INVOCATION = [1]
+
+# Estimate RNG state
+rng_state = np.random.get_state()
+seed_bytes = rng_state[1][0].tobytes()
+approx_seed_hash = hashlib.sha256(seed_bytes).hexdigest()
+
+
+export_data = {
+    "timestamp": datetime.datetime.now().isoformat(),
+    "experiment_id": "qdrift_qpe_full_batch",
+    "static_parameters": {
+        "num_qubits": NUM_QUBITS,
+        "hamiltonian_info": [{"type" : t, "coeffs": str(H.coeffs), "terms" : str(H.paulis)} for t, H in HAMILTONIANS],
+    },
+    "sweep_space": {
+        "total_simulation_time": TIME_VALUES.tolist(),
+        "num_ancilla": ANCILLA_VALUES,
+        "randomness": RANDOMNESS,
+        "qdrift_implementations": [impl[1] for impl in QDRIFT_IMPLEMENTATIONS],
+        "num_segments_per_invocation": NUM_SEGMENTS_PER_INVOCATION,
+        "calculate_ground_state": [False],  # or [True, False]
+    },
+    "numpy_random_state": {
+        "approx_seed_hash": approx_seed_hash,
+        "rng_state": str(rng_state)
+    }
+}
+# Save static metadata to JSON file
+with open(f"{CSV_FILE_QDRIFT_QPE_ALL}static_metadata.json", "w") as f:
+    json.dump(export_data, f, indent=4)
+
 @pytest.mark.parametrize("qdrift_impl", QDRIFT_IMPLEMENTATIONS)
 @pytest.mark.parametrize("calculate_ground_state", [False])
 @pytest.mark.parametrize("H", HAMILTONIANS)
@@ -89,7 +123,6 @@ NUM_SEGMENTS_PER_INVOCATION = [1, 2, 10]
 @pytest.mark.parametrize("num_ancilla", ANCILLA_VALUES, ids=lambda v: f"qubit{v}")
 @pytest.mark.parametrize("total_simulation_time", TIME_VALUES)
 @pytest.mark.parametrize("num_segments_per_invocation", NUM_SEGMENTS_PER_INVOCATION, ids=lambda v: f"segments{v}")
-
 
 def test_qdrift_qpe_general_case(total_simulation_time, num_ancilla, qdrift_impl: Tuple[Callable, str], num_random_circuits_and_num_shots_per_circuit, calculate_ground_state: bool, H, num_segments_per_invocation):
     """Test QPE with Ising Hamiltonian (General Case) and log Hamiltonian representations."""
