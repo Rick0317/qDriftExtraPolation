@@ -1,0 +1,106 @@
+{
+  "configs": [
+    {
+      "anc": 12,
+      "circuits": 100,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.3950765674039956
+    },
+    {
+      "anc": 12,
+      "circuits": 1000,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.3950765674039956
+    },
+    {
+      "anc": 12,
+      "circuits": 100,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.35641350902292834
+    },
+    {
+      "anc": 12,
+      "circuits": 1000,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.35641350902292834
+    },
+    {
+      "anc": 12,
+      "circuits": 100,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.2828720017965004
+    },
+    {
+      "anc": 12,
+      "circuits": 1000,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.2828720017965004
+    },
+    {
+      "anc": 12,
+      "circuits": 100,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.18165080084584478
+    },
+    {
+      "anc": 12,
+      "circuits": 1000,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.18165080084584478
+    },
+    {
+      "anc": 12,
+      "circuits": 100,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.06265814256958835
+    },
+    {
+      "anc": 12,
+      "circuits": 1000,
+      "ground_state": false,
+      "ham": "ising",
+      "replication_seed": 42,
+      "segments": 1,
+      "shots": 1,
+      "time": 0.06265814256958835
+    }
+  ],
+  "generated_utc": "2025-07-24T17:39:29.088854",
+  "num_configs": 10
+}

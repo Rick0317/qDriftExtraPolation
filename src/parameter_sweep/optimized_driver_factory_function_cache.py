@@ -3,12 +3,14 @@ Parameter sweep for the *optimised* qDRIFT–QPE implementation.
 Produces a CSV that contains the same rich set of statistical indicators
 """
 from __future__ import annotations
+from importlib import metadata
+from re import M
 import sys
 import pathlib
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))  # add root to path
-from typing import Dict, List, Optional, Tuple, Callable, Sequence
+from typing import Dict, List, Optional, Tuple, Callable, Sequence, NamedTuple
 from functools import wraps, cache, cached_property, partial
-import csv, datetime, itertools, json, os, pathlib, statisticxs, time
+import csv, datetime, itertools, json, os, pathlib, statistics, time
 from dataclasses import dataclass, asdict
 from multiprocessing import Pool, cpu_count
 from typing_extensions import runtime
@@ -21,10 +23,13 @@ from qiskit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 from qiskit import transpile
 from qiskit.circuit.library import PauliEvolutionGate
+from qiskit.circuit import Parameter
 
 from src.algorithms.algos_optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, make_pauli_gate_cache, build_template_circuit, build_qdrift_trajectory
 
 from src.algorithms.algos_qft_qpe_qdrift_latest import generate_ising_hamiltonian
+from src.algorithms.chebyshev import chebyshev_nodes
+
 
 @dataclass
 class QPEResult:
@@ -51,8 +56,6 @@ class QPEResult:
 
     counts          : str  # json-encoded
 
-templateCircuitKey = tuple[str, int, Optional[bool]]
-
 # ════════════════════════════════════════════════════════════════════════════
 #  Parameter grid and constants
 # ════════════════════════════════════════════════════════════════════════════
@@ -61,14 +64,16 @@ ISING_J, ISING_G = 0.5, 0.4
 PLACEHOLDER = "_I_"
 
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
-    "ising" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J, ISING_G),
-    "Z-field" : SparsePauliOp.from_list([("Z"*NUM_SYSTEM_QUBITS, np.pi/2)])
+    "ising" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J, ISING_G)
 }
 
-NUM_ANCILLA  = [12, 14, 16]  # number of ancilla qubits
-TIMES     = np.linspace(0.001, 1, 100) # np.logspace(base=2, start=-10, stop=1, num=100, endpoint=True)
+NUM_ANCILLA  = [12]  # number of ancilla qubits
+
+chebyshev_nodes = np.array(chebyshev_nodes(10))
+scaled_nodes_pos = 0.0001 + (0.4 - 0.0001) * chebyshev_nodes[:5]
+TIMES     = scaled_nodes_pos
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [100]
+RANDOM_CIRCUITS_PER_DATAPOINT = [100, 1000]
 SHOTS_PER_CIRCUIT = [1]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
@@ -77,45 +82,19 @@ ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (
 #  # memoised, fork-safe factories of circuit templates and PauliEvolutionGates
 # ════════════════════════════════════════════════════════════════════════════
 
-PAULI_CACHE : dict[str, dict[str,PauliEvolutionGate]] = {}
-TEMPLATE_CIRCUITS    : dict[templateCircuitKey, QuantumCircuit]    = {}
-
-'''
-def _ensure_caches(ham_key: str, H: SparsePauliOp, n_anc   : int, ground_state: bool) -> None:
-    if ham_key not in PAULI_CACHE:
-        # cache of single–τ PauliEvolutionGates (controlled later on)
-        PAULI_CACHE[ham_key], _ = make_pauli_gate_cache(H, PLACEHOLDER)
-
-    if (ham_key, n_anc, ground_state) not in TEMPLATE_CIRCUITS:
-        eigvals, eigvecs = np.linalg.eig(H.to_matrix())
-        eigenstate_index = np.argmin(eigvals.real) if ground_state else np.argmax(eigvals.real)
-        eigenstate = eigvecs[:, eigenstate_index]   # pick the ground state or excited state
-        eigenstate_circuit = prepare_eigenstate_circuit(eigenstate)
-
-        # one static template that still contains PLACEHOLDER gates
-        TEMPLATE_CIRCUITS[(ham_key, n_anc, ground_state)] = build_template_circuit(
-            n_anc               = n_anc,
-            n_sys               = NUM_SYSTEM_QUBITS,
-            placeholder_label   = PLACEHOLDER,
-            eigenvalue_circuit  = eigenstate_circuit,
-            gate_cache          = PAULI_CACHE[ham_key]
-        )
-
-        print(f"Prepared template circuit for {ham_key} with {n_anc} ancillas for process {os.getpid()}.")
-'''
-        
+class PauliGateCache(NamedTuple):
+    gates : dict[str, PauliEvolutionGate]
+    tau   : Parameter                     # the *same* symbol for all gates        
 
 @cache # this decorator is fork-safe and works with multiprocessing
-def pauli_cache(ham_key: str) -> dict[str, PauliEvolutionGate]:
+def pauli_cache(ham_key: str) -> PauliGateCache:
     """
     Cache of single-τ PauliEvolutionGates for a given Hamiltonian.
     One instance per *process* thanks to functools.cache.
     """
-    if ham_key not in PAULI_CACHE:
-        H = HAMILTONIANS_TO_TEST[ham_key]
-        PAULI_CACHE[ham_key], tau = make_pauli_gate_cache(H, PLACEHOLDER)
-        print(f"Prepared PauliEvolutionGate cache for {ham_key} with {len(PAULI_CACHE[ham_key])} gates for process {os.getpid()}.")
-    return PAULI_CACHE[ham_key]
+    H = HAMILTONIANS_TO_TEST[ham_key]
+    gates, tau = make_pauli_gate_cache(H, PLACEHOLDER)
+    return PauliGateCache(gates=gates, tau=tau)
 
 @cache
 def template_circuit(ham_key: str, n_anc: int, ground_state: bool) -> QuantumCircuit:
@@ -123,23 +102,20 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool) -> QuantumCir
     Heavy-weight template circuit that is re-used for every trajectory
     with identical (ham_key, n_anc, ground_state).
     """
-    if (ham_key, n_anc, ground_state) not in TEMPLATE_CIRCUITS:
-        H = HAMILTONIANS_TO_TEST[ham_key]
-        eigvals, eigvecs = np.linalg.eig(H.to_matrix())
-        eigenstate_index = np.argmin(eigvals.real) if ground_state else np.argmax(eigvals.real)
-        eigenstate = eigvecs[:, eigenstate_index]   # pick the ground state or excited state
-        eigenstate_circuit = prepare_eigenstate_circuit(eigenstate)
-        # one static template that still contains PLACEHOLDER gates
-        TEMPLATE_CIRCUITS[(ham_key, n_anc, ground_state)] = build_template_circuit(
-            n_anc               = n_anc,
-            n_sys               = NUM_SYSTEM_QUBITS,
-            placeholder_label   = PLACEHOLDER,
-            eigenvalue_circuit  = eigenstate_circuit,
-            exponentiated_hamiltonian_terms_cache          = pauli_cache(ham_key)
-        )
-    else:
-        print(f"Re-using template circuit for {ham_key} with {n_anc} ancillas for process {os.getpid()}.")
-    return TEMPLATE_CIRCUITS[(ham_key, n_anc, ground_state)].copy()
+    H = HAMILTONIANS_TO_TEST[ham_key]
+    eigvals, eigvecs = np.linalg.eig(H.to_matrix())
+    eigenstate_index = np.argmin(eigvals.real) if ground_state else np.argmax(eigvals.real)
+    eigenstate = eigvecs[:, eigenstate_index]   # pick the ground state or excited state
+    eigenstate_circuit = prepare_eigenstate_circuit(eigenstate)
+    # one static template that still contains PLACEHOLDER gates
+    qc = build_template_circuit(
+        n_anc               = n_anc,
+        n_sys               = NUM_SYSTEM_QUBITS,
+        placeholder_label   = PLACEHOLDER,
+        eigenvalue_circuit  = eigenstate_circuit,
+        exponentiated_hamiltonian_terms_cache          = pauli_cache(ham_key)
+    )
+    return qc
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -283,7 +259,6 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
 
     for ss in child_ss:
         rng   = np.random.default_rng(ss)
-        dummy_qc = template_circuit(ham_key, n_anc, ground_state) #just to ensure the template is built
         qc    = build_qdrift_trajectory(n_anc=n_anc,
                                         h_signature=ham_key,
                                         total_time=total_time,
@@ -291,9 +266,14 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
                                         rng=rng,
                                         n_qdrift_segments=1,
                                         placeholder_label=PLACEHOLDER,
-                                        template_circuit= TEMPLATE_CIRCUITS,
-                                        exponentialed_hamiltonian_terms_cache= pauli_cache(ham_key),
-                                        ground_state=ground_state
+                                        template_circuit= template_circuit(
+                                            ham_key=ham_key,
+                                            n_anc=n_anc,
+                                            ground_state=ground_state
+                                        ),
+                                        exponentialed_hamiltonian_terms_cache=pauli_cache(ham_key),
+                                        use_exp_ham_terms_cache=True #TODO: make something about this
+
         )
         qc_t  = transpile(qc, backend=_LOCAL.backend)
 
@@ -354,6 +334,9 @@ def main() -> None:
         SHOTS_PER_CIRCUIT,
         ESTIMATE_GROUND_STATE         # whether to estimate the ground state
     )
+    # print the hamiltonians:
+    for ham_key, h in HAMILTONIANS_TO_TEST.items():
+        print(f"Hamiltonian {ham_key}:\n{h}\n")
     # serialise each tuple into a plain dict for _run
     cfgs = [dict(ham              = g[0],
                  anc              = g[1],
@@ -364,9 +347,22 @@ def main() -> None:
                  shots            = g[6],
                  ground_state     = g[7])
             for g in grid]
+    # dump the full experiment grid to JSON (once)
+    metadata_path = pathlib.Path(
+        f"qdrift_qpe_stats_function_cache_{datetime.datetime.today():%Y-%m-%d}.json"
+    )
+    with metadata_path.open("w") as fh:
+        json.dump(
+            {"generated_utc": datetime.datetime.utcnow().isoformat(),
+             "num_configs": len(cfgs),
+             "configs": cfgs},
+            fh,
+            indent=2,
+            sort_keys=True
+        )
 
     csv_path = pathlib.Path(
-        f"qdrift_qpe_stats_{datetime.datetime.today():%Y-%m-%d}.csv"
+        f"qdrift_qpe_5_chebyshev_function_cache_{datetime.datetime.today():%Y-%m-%d}.csv"
     )
 
     # write header once

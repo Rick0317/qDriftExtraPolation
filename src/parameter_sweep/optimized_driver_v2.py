@@ -132,7 +132,7 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool) -> QuantumCir
             n_sys               = NUM_SYSTEM_QUBITS,
             placeholder_label   = PLACEHOLDER,
             eigenvalue_circuit  = eigenstate_circuit,
-            gate_cache          = pauli_cache(ham_key)
+            exponentiated_hamiltonian_terms_cache          = pauli_cache(ham_key)
         )
     else:
         print(f"Re-using template circuit for {ham_key} with {n_anc} ancillas for process {os.getpid()}.")
