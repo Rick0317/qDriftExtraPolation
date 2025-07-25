@@ -13,9 +13,9 @@ from functools import wraps, cache, cached_property, partial
 import csv, datetime, itertools, json, os, pathlib, statistics, time
 from dataclasses import dataclass, asdict
 from multiprocessing import Pool, cpu_count
-from typing_extensions import runtime
 from memory_profiler import memory_usage
 import tracemalloc, time, psutil, threading, time, os
+from uuid import uuid4
 
 import numpy as np
 from qiskit_aer import AerSimulator
@@ -33,26 +33,27 @@ from src.algorithms.chebyshev import chebyshev_nodes
 
 @dataclass
 class QPEResult:
-    ham             : str
-    n_sys           : int
-    n_anc           : int
-    time            : float
-    segments        : int
-    replication_seed            : int
-    n_circuits     : int
-    n_shots           : int
-    depth           : int
-    size            : int
-    peak_MB         : float  # peak memory usage in MB
-    runtime         : float  # runtime in seconds
-    exact_eig       : float
-    most_likely_bs  : str
-    est_energy_med  : float
+    ham : str
+    num_system_qubits : int
+    num_ancilla : int
+    time : float
+    segments : int
+    replication_seed : int
+    n_circuits : int
+    n_shots : int
+    depth : int
+    size : int
+    peak_MB : float  # peak memory usage in MB
+    runtime : float  # runtime in seconds
+    exact_eig : float
+    most_likely_bs : str
+    est_energy_med : float
     est_energy_mean : float
     est_energy_std  : float
     est_energy_min  : float
     est_energy_max  : float
     estimation_error : float
+    alpha : float # sum of Hamiltonian coefficients
 
     counts          : str  # json-encoded
 
@@ -60,23 +61,25 @@ class QPEResult:
 #  Parameter grid and constants
 # ════════════════════════════════════════════════════════════════════════════
 NUM_SYSTEM_QUBITS  = 2
-ISING_J, ISING_G = 0.5, 0.4
+ISING_J, ISING_G = 1.2, 1
 PLACEHOLDER = "_I_"
 
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
-    "ising" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J, ISING_G)
+    "ising" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J, ISING_G),
+    "ising_smaller_coeffs" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J/10, ISING_G/10),
 }
 
-NUM_ANCILLA  = [12]  # number of ancilla qubits
+NUM_ANCILLA  = [6, 8, 10, 11]  # number of ancilla qubits
 
 chebyshev_nodes = np.array(chebyshev_nodes(10))
 scaled_nodes_pos = 0.0001 + (0.4 - 0.0001) * chebyshev_nodes[:5]
-TIMES     = scaled_nodes_pos
+TIMES     = np.linspace(0.0001, 2.5, 20)  # time intervals for the QPE
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [100, 1000]
-SHOTS_PER_CIRCUIT = [1]
+RANDOM_CIRCUITS_PER_DATAPOINT = [10, 100, 1000, 2000]
+SHOTS_PER_CIRCUIT = [1, 100]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
+TEST_ID = uuid4()
 
 # ════════════════════════════════════════════════════════════════════════════
 #  # memoised, fork-safe factories of circuit templates and PauliEvolutionGates
@@ -199,7 +202,7 @@ def profile_mp(func):
                              for st in stats)
         result.top10_py_alloc  = top10
         result.peak_MB         = peak_psutil
-        result.runtime_s       = runtime
+        result.runtime       = runtime
         tracemalloc.stop()
         return result
     return _w
@@ -221,7 +224,7 @@ def analyse_counts(counts: dict[str,int],
         energy = 2*np.pi*phase / t
         energies_weighted += [energy]*c
     e_med  = statistics.median(energies_weighted)
-    e_mean = statistics.mean  (energies_weighted)
+    e_mean = statistics.mean  (energies_weighted) # less affected by outliers
     e_std  = statistics.stdev (energies_weighted) if len(energies_weighted)>1 else 0
     e_min, e_max = min(energies_weighted), max(energies_weighted)
     return ml_bitstr, e_med, e_mean, e_std, e_min, e_max
@@ -297,8 +300,8 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
     # ─── package result ──────────────────────────────────────────
     return QPEResult(
         ham              = ham_key,
-        n_sys            = NUM_SYSTEM_QUBITS,
-        n_anc            = n_anc,
+        num_system_qubits = NUM_SYSTEM_QUBITS,
+        num_ancilla            = n_anc,
         time             = total_time,
         segments         = experimental_conditions["segments"],  # still useful meta-data
         replication_seed = experimental_conditions["replication_seed"],
@@ -316,13 +319,14 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
         est_energy_min   = e_min,
         est_energy_max   = e_max,
         estimation_error = error,
+        alpha            = sum(abs(H.coeffs)),
         counts           = json.dumps(total_counts, sort_keys=True),
     )
 
 # =========================================================================
 # driving script – build the grid and launch a Pool
 # =========================================================================
-def main() -> None:
+def main(verbose_export = False) -> None:
     # full Cartesian product of all sweep parameters
     grid = itertools.product(
         HAMILTONIANS_TO_TEST.keys(),
@@ -334,9 +338,7 @@ def main() -> None:
         SHOTS_PER_CIRCUIT,
         ESTIMATE_GROUND_STATE         # whether to estimate the ground state
     )
-    # print the hamiltonians:
-    for ham_key, h in HAMILTONIANS_TO_TEST.items():
-        print(f"Hamiltonian {ham_key}:\n{h}\n")
+
     # serialise each tuple into a plain dict for _run
     cfgs = [dict(ham              = g[0],
                  anc              = g[1],
@@ -347,30 +349,55 @@ def main() -> None:
                  shots            = g[6],
                  ground_state     = g[7])
             for g in grid]
+    
     # dump the full experiment grid to JSON (once)
-    metadata_path = pathlib.Path(
-        f"qdrift_qpe_stats_function_cache_{datetime.datetime.today():%Y-%m-%d}.json"
-    )
-    with metadata_path.open("w") as fh:
-        json.dump(
-            {"generated_utc": datetime.datetime.utcnow().isoformat(),
-             "num_configs": len(cfgs),
-             "configs": cfgs},
-            fh,
-            indent=2,
-            sort_keys=True
-        )
+    basename = f"qdrift_qpe_fc_parameter_sweep_{datetime.datetime.today():%Y-%m-%d}"
+    metadata_path = pathlib.Path(f"{basename}.json")
+    if verbose_export:
+        with metadata_path.open("w") as fh:
+            json.dump(
+                {"generated_utc": datetime.datetime.today().isoformat(timespec="seconds") + "Z",
+                "num_configs": len(cfgs),
+                "configs": cfgs},
+                fh,
+                indent=2,
+                sort_keys=True
+            )
+    else:
+        spec = {
+        "generated_utc" : datetime.datetime.today().isoformat(timespec="seconds") + "Z",
+        "script_version": os.getenv("GIT_COMMIT", "unknown"),
+        "metadata": {
+            "num_configs": len(cfgs),
+            "static_parameters": {
+                "num_system_qubits" : NUM_SYSTEM_QUBITS,
+                "Random_seed(s)" : REPLICATION_SEEDS
+            },
+            "sweep_space" : {
+                "t" : list(TIMES),
+                "num_ancilla" : NUM_ANCILLA,
+                "num_qdrift_segments_per_qdrift_channel_invocation" : NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE,
+                "num_independent_stochastic_circuits_per_datapoint" : RANDOM_CIRCUITS_PER_DATAPOINT,
+                "num_shots_per_circuit": SHOTS_PER_CIRCUIT,
+                "Hamiltonians": [{"type" : ty, "coeffs" : str(H.coeffs), "paulis" : H.paulis.to_labels()} for ty, H in HAMILTONIANS_TO_TEST.items()],
+                "calculate_ground_state": ESTIMATE_GROUND_STATE,
+            }
+            }
+        }
+        with metadata_path.open("w") as fh:
+            json.dump(
+                spec,
+                fh,
+                indent=2,
+                sort_keys=True
+            )
 
-    csv_path = pathlib.Path(
-        f"qdrift_qpe_5_chebyshev_function_cache_{datetime.datetime.today():%Y-%m-%d}.csv"
-    )
-
-    # write header once
+    csv_path = pathlib.Path(f"{basename}.csv")
     if not csv_path.exists():
         with csv_path.open("w", newline="") as fh:
             csv.DictWriter(
                 fh,
-                fieldnames = QPEResult.__dataclass_fields__.keys()
+                fieldnames = QPEResult.__dataclass_fields__.keys() # write header only once (and only if the file does not exist)
             ).writeheader()
 
     # run the sweep in parallel

@@ -152,12 +152,10 @@ def build_qdrift_trajectory(
 
     template_qc.data = new_data
     # print(f"New circuit data: {template_qc.data}")
-    print(f"Replaced {c1} placeholders with new gates, kept {c2} original instructions.")
     lam = np.sum(np.abs(H.coeffs))
     tau_val = (lam * total_time) / n_qdrift_segments if n_qdrift_segments > 0 else 0
     tau_param = exponentialed_hamiltonian_terms_cache[placeholder_label].params[0] if isinstance(exponentialed_hamiltonian_terms_cache, dict) else exponentialed_hamiltonian_terms_cache.tau
     
     qdrift_trajectory = template_qc.assign_parameters({tau_param: tau_val})
-    print(f"Built qDRIFT trajectory for {h_signature} with {n_anc} ancillas.")
 
     return qdrift_trajectory
