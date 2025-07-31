@@ -7,6 +7,8 @@ from importlib import metadata
 from re import M
 import sys
 import pathlib
+
+from zmq import device
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))  # add root to path
 from typing import Dict, List, Optional, Tuple, Callable, Sequence, NamedTuple
 from functools import wraps, cache, cached_property, partial
@@ -69,14 +71,14 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     "ising_smaller_coeffs" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J/10, ISING_G/10),
 }
 
-NUM_ANCILLA  = [6, 8, 10, 11]  # number of ancilla qubits
+NUM_ANCILLA  = [16, 18]  # number of ancilla qubits
 
 chebyshev_nodes = np.array(chebyshev_nodes(10))
 scaled_nodes_pos = 0.0001 + (0.4 - 0.0001) * chebyshev_nodes[:5]
-TIMES     = np.linspace(0.0001, 2.5, 20)  # time intervals for the QPE
+TIMES     = np.logspace(-10, 1, base=2, num=20)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [10, 100, 1000, 2000]
-SHOTS_PER_CIRCUIT = [1, 100]
+RANDOM_CIRCUITS_PER_DATAPOINT = [1]
+SHOTS_PER_CIRCUIT = [1]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
 TEST_ID = uuid4()
@@ -127,7 +129,7 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool) -> QuantumCir
 class LocalResources:
     @cached_property
     def backend(self):
-        return AerSimulator(method="automatic")
+        return AerSimulator(method="matrix_product_state", device="CPU")
 
 _LOCAL = LocalResources()
 
@@ -234,7 +236,7 @@ def analyse_counts(counts: dict[str,int],
 #   worker function – executed inside each worker process
 # =========================================================================
 
-@profile_mp
+@profile_mp #custom decorator that profiles memory and runtime
 def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
     """Run one data-point of the parameter sweep."""
     print("Running worker from process", os.getpid())
@@ -259,6 +261,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
 
     total_counts: dict[str, int] = {}
     circ_sample: QuantumCircuit | None = None
+    template_circuit_cached = template_circuit(ham_key=ham_key, n_anc=n_anc, ground_state=ground_state)
 
     for ss in child_ss:
         rng   = np.random.default_rng(ss)
@@ -269,11 +272,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
                                         rng=rng,
                                         n_qdrift_segments=1,
                                         placeholder_label=PLACEHOLDER,
-                                        template_circuit= template_circuit(
-                                            ham_key=ham_key,
-                                            n_anc=n_anc,
-                                            ground_state=ground_state
-                                        ),
+                                        template_circuit= template_circuit_cached,
                                         exponentialed_hamiltonian_terms_cache=pauli_cache(ham_key),
                                         use_exp_ham_terms_cache=True #TODO: make something about this
 
@@ -402,7 +401,7 @@ def main(verbose_export = False) -> None:
 
     # run the sweep in parallel
     n_proc = min(os.cpu_count() or 1, 16)
-    with Pool(processes=n_proc) as pool:
+    with Pool(processes=n_proc//4) as pool:
         print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
         for result in pool.imap_unordered(run_simulation, cfgs):
             with csv_path.open("a", newline="") as fh:

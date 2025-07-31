@@ -130,11 +130,23 @@ def build_qdrift_trajectory(
 
     new_data = []
     word_iterator = iter(words)
-    c1, c2 = 0, 0
 
     if not isinstance(exponentialed_hamiltonian_terms_cache, dict):
         exponentialed_hamiltonian_terms_cache = exponentialed_hamiltonian_terms_cache.gates
 
+    qc = QuantumCircuit(*template_qc.qregs, *template_qc.cregs,
+                        name=template_qc.name)
+    for instruction in template_circuit.data:
+        if placeholder_label in instruction.operation.name:
+            chosen_word = next(word_iterator)
+            new_gate    = exponentialed_hamiltonian_terms_cache[chosen_word]
+            new_gate.name = f"ctrl-evolution-{chosen_word}"
+            qc.append(new_gate, instruction.qubits, instruction.clbits)
+        else:
+            qc.append(instruction.operation, instruction.qubits, instruction.clbits)
+
+    '''
+    c1, c2 = 0, 0
     for instruction in template_qc.data:
         if placeholder_label in instruction.operation.name:
             chosen_word = next(word_iterator)
@@ -148,14 +160,15 @@ def build_qdrift_trajectory(
             c2 += 1
     assert c1 > 0, "No placeholders were replaced in the template circuit."
     assert next(word_iterator, None) is None, "Not all words consumed"
-
-
     template_qc.data = new_data
     # print(f"New circuit data: {template_qc.data}")
+    '''
+    
     lam = np.sum(np.abs(H.coeffs))
     tau_val = (lam * total_time) / n_qdrift_segments if n_qdrift_segments > 0 else 0
     tau_param = exponentialed_hamiltonian_terms_cache[placeholder_label].params[0] if isinstance(exponentialed_hamiltonian_terms_cache, dict) else exponentialed_hamiltonian_terms_cache.tau
     
-    qdrift_trajectory = template_qc.assign_parameters({tau_param: tau_val})
+    # qdrift_trajectory = template_qc.assign_parameters({tau_param: tau_val})
+    qc.assign_parameters({tau_param: tau_val}, inplace=True)  # bind the tau parameter to the circuit
 
-    return qdrift_trajectory
+    return qc
