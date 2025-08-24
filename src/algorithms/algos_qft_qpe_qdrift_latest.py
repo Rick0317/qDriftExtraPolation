@@ -11,7 +11,7 @@ from qiskit import transpile
 from qiskit_aer import AerSimulator  # as of 25Mar2025
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.circuit.library import QFT, UnitaryGate, PhaseGate, RZGate
-from qiskit.quantum_info import Operator
+from qiskit.quantum_info import Operator, Statevector
 from sympy import Matrix, latex
 from IPython.display import display, Math
 from qiskit.quantum_info import Pauli, SparsePauliOp, Operator
@@ -226,11 +226,11 @@ def qdrift_sample_naive(hamiltonian: SparsePauliOp, time: float, num_samples: in
     return sampled_unitaries, labels
 
 # Function to perform qDRIFT-based QPE
-def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: int, num_ancilla: int, num_samples_per_channel_invocation=1):
+def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate: Union[np.array, Statevector, QuantumCircuit], num_qubits: int, num_ancilla: int, num_samples_per_channel_invocation=1, include_measurements=True):
     qc = QuantumCircuit(num_ancilla + num_qubits, num_ancilla)
 
     # Initialize the eigenstate
-    if isinstance(eigenstate, np.ndarray):
+    if isinstance(eigenstate, np.ndarray) or isinstance(eigenstate, Statevector):
         eigenstate_circuit = QuantumCircuit(num_qubits, name='Eigenstate')
         eigenstate_circuit.initialize(eigenstate)
     else:
@@ -242,7 +242,7 @@ def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: 
     qc.append(QFT(num_ancilla), range(num_ancilla))
     k = 0
     # Controlled qDRIFT unitaries
-    for k in tqdm(range(num_ancilla), desc=f"Ancilla layer (k={k})"):
+    for k in range(num_ancilla):
         for _ in range(2 ** k):
             # Sample unitaries using the new qdrift_sample function
             sampled_unitaries, labels = qdrift_sample_naive(hamiltonian, time, num_samples=num_samples_per_channel_invocation)
@@ -254,7 +254,8 @@ def qdrift_qpe(hamiltonian: SparsePauliOp, time: float, eigenstate, num_qubits: 
     qc.append(QFT(num_ancilla, inverse=True), range(num_ancilla))
     
     # Measure the ancilla qubits
-    qc.measure(range(num_ancilla), range(num_ancilla))
+    if include_measurements:
+        qc.measure(range(num_ancilla), range(num_ancilla))
     
     return qc
 

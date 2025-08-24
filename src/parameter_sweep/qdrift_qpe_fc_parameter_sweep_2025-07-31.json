@@ -1,0 +1,75 @@
+{
+  "generated_utc": "2025-07-31T11:23:18Z",
+  "metadata": {
+    "num_configs": 80,
+    "static_parameters": {
+      "Random_seed(s)": [
+        42
+      ],
+      "num_system_qubits": 2
+    },
+    "sweep_space": {
+      "Hamiltonians": [
+        {
+          "coeffs": "[-1.2+0.j -1.2+0.j -1. +0.j -1. +0.j]",
+          "paulis": [
+            "ZZ",
+            "ZZ",
+            "XI",
+            "IX"
+          ],
+          "type": "ising"
+        },
+        {
+          "coeffs": "[-0.12+0.j -0.12+0.j -0.1 +0.j -0.1 +0.j]",
+          "paulis": [
+            "ZZ",
+            "ZZ",
+            "XI",
+            "IX"
+          ],
+          "type": "ising_smaller_coeffs"
+        }
+      ],
+      "calculate_ground_state": [
+        false
+      ],
+      "num_ancilla": [
+        16,
+        18
+      ],
+      "num_independent_stochastic_circuits_per_datapoint": [
+        1
+      ],
+      "num_qdrift_segments_per_qdrift_channel_invocation": [
+        1
+      ],
+      "num_shots_per_circuit": [
+        1
+      ],
+      "t": [
+        0.0009765625,
+        0.0014587489859907092,
+        0.0021790193706280165,
+        0.0032549297124943137,
+        0.004862080427593842,
+        0.007262776211003177,
+        0.010848837051677003,
+        0.016205547569471748,
+        0.0242071819104165,
+        0.036159694915085014,
+        0.054013868330100356,
+        0.0806836998717128,
+        0.12052199974281191,
+        0.18003081719234498,
+        0.2689226465550455,
+        0.4017056132834412,
+        0.6000513597890517,
+        0.8963320961378564,
+        1.3389041012244733,
+        2.0
+      ]
+    }
+  },
+  "script_version": "unknown"
+}

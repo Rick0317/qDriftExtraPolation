@@ -43,8 +43,6 @@ class QPEResult:
     replication_seed : int
     n_circuits : int
     n_shots : int
-    depth : int
-    size : int
     peak_MB : float  # peak memory usage in MB
     runtime : float  # runtime in seconds
     exact_eig : float
@@ -56,6 +54,7 @@ class QPEResult:
     est_energy_max  : float
     estimation_error : float
     alpha : float # sum of Hamiltonian coefficients
+    max_theoretical_qdrift_error: float
 
     counts          : str  # json-encoded
 
@@ -67,17 +66,17 @@ ISING_J, ISING_G = 1.2, 1
 PLACEHOLDER = "_I_"
 
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
-    "ising" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J, ISING_G),
-    "ising_smaller_coeffs" : generate_ising_hamiltonian(NUM_SYSTEM_QUBITS, ISING_J/10, ISING_G/10),
+    "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZ", coeffs=np.pi / 4),
+    "H_many_diag_terms" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([1/10, -2/10, 3/10, 4/10])) 
 }
 
-NUM_ANCILLA  = [16, 18]  # number of ancilla qubits
+NUM_ANCILLA  = [14, 15]  # number of ancilla qubits
 
 chebyshev_nodes = np.array(chebyshev_nodes(10))
-scaled_nodes_pos = 0.0001 + (0.4 - 0.0001) * chebyshev_nodes[:5]
-TIMES     = np.logspace(-10, 1, base=2, num=20)
+scaled_nodes_pos = 0.000001 + (0.2 - 0.000001) * chebyshev_nodes[:4]
+TIMES     = scaled_nodes_pos #np.logspace(-10, 1, base=2, num=20)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [1]
+RANDOM_CIRCUITS_PER_DATAPOINT = [200]
 SHOTS_PER_CIRCUIT = [1]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
@@ -214,19 +213,19 @@ def profile_mp(func):
 # ════════════════════════════════════════════════════════════════════════════
 def analyse_counts(counts: dict[str,int],
                    t: float,
-                   m: int) -> tuple[str, float,float,float,float,float,float]:
-    total      = sum(counts.values())
+                   m: int,
+                   wrapp_around_correction: bool=True) -> tuple[str, float,float,float,float,float,float]:
     ml_bitstr  = max(counts, key=counts.get)
     # translate bitstrings ↦ energies
     energies_weighted = []
     for bs, c in counts.items():
         phase = int(bs, 2) / 2**m
-        if phase >= .5:                         # map to (-.5,.5]
+        if phase > .5 and wrapp_around_correction:                         # map to (-.5,.5]
             phase -= 1
         energy = 2*np.pi*phase / t
         energies_weighted += [energy]*c
     e_med  = statistics.median(energies_weighted)
-    e_mean = statistics.mean  (energies_weighted) # less affected by outliers
+    e_mean = statistics.mean  (energies_weighted)
     e_std  = statistics.stdev (energies_weighted) if len(energies_weighted)>1 else 0
     e_min, e_max = min(energies_weighted), max(energies_weighted)
     return ml_bitstr, e_med, e_mean, e_std, e_min, e_max
@@ -306,11 +305,10 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
         replication_seed = experimental_conditions["replication_seed"],
         n_circuits       = n_circuits,
         n_shots          = shots,
-        depth            = circ_sample.depth() if circ_sample else 0,
-        size             = circ_sample.size()  if circ_sample else 0,
         peak_MB          = 0.0,     # overwritten by @profile_mp
         runtime          = 0.0,     # overwritten by @profile_mp
         exact_eig        = exact_eig,
+        max_theoretical_qdrift_error = 2 * sum(abs(H.coeffs)) ** 2 * total_time * np.exp(2 * sum(abs(H.coeffs)) * total_time),
         most_likely_bs   = ml_bs,
         est_energy_med   = e_med,
         est_energy_mean  = e_mean,
@@ -378,8 +376,11 @@ def main(verbose_export = False) -> None:
                 "num_qdrift_segments_per_qdrift_channel_invocation" : NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE,
                 "num_independent_stochastic_circuits_per_datapoint" : RANDOM_CIRCUITS_PER_DATAPOINT,
                 "num_shots_per_circuit": SHOTS_PER_CIRCUIT,
-                "Hamiltonians": [{"type" : ty, "coeffs" : str(H.coeffs), "paulis" : H.paulis.to_labels()} for ty, H in HAMILTONIANS_TO_TEST.items()],
-                "calculate_ground_state": ESTIMATE_GROUND_STATE,
+                "Hamiltonians": [{"type" : ty, 
+                                  "coeffs" : str(H.coeffs), 
+                                  "paulis" : H.paulis.to_labels(),
+                                  "eigenvalue to estimate" : np.linalg.eigvals(H.to_matrix()).real.tolist()} for ty, H in HAMILTONIANS_TO_TEST.items()],
+                "calculate_ground_state": ESTIMATE_GROUND_STATE
             }
             }
         }
@@ -401,7 +402,7 @@ def main(verbose_export = False) -> None:
 
     # run the sweep in parallel
     n_proc = min(os.cpu_count() or 1, 16)
-    with Pool(processes=n_proc//4) as pool:
+    with Pool(processes=n_proc//2 ) as pool:
         print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
         for result in pool.imap_unordered(run_simulation, cfgs):
             with csv_path.open("a", newline="") as fh:

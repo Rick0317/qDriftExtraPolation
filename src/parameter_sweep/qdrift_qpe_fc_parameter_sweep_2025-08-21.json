@@ -1,0 +1,59 @@
+{
+  "generated_utc": "2025-08-21T09:21:30Z",
+  "metadata": {
+    "num_configs": 8,
+    "static_parameters": {
+      "Random_seed(s)": [
+        42
+      ],
+      "num_system_qubits": 2
+    },
+    "sweep_space": {
+      "Hamiltonians": [
+        {
+          "coeffs": "[ 0.1+0.j -0.2+0.j  0.3+0.j  0.4+0.j]",
+          "eigenvalue to estimate": [
+            0.6,
+            0.4000000000000001,
+            0.8,
+            -0.20000000000000007
+          ],
+          "paulis": [
+            "ZI",
+            "ZZ",
+            "IZ",
+            "II"
+          ],
+          "type": "H_many_diag_terms"
+        }
+      ],
+      "calculate_ground_state": [
+        false
+      ],
+      "num_ancilla": [
+        6,
+        8,
+        10,
+        12,
+        14,
+        15
+      ],
+      "num_independent_stochastic_circuits_per_datapoint": [
+        200
+      ],
+      "num_qdrift_segments_per_qdrift_channel_invocation": [
+        1
+      ],
+      "num_shots_per_circuit": [
+        1
+      ],
+      "t": [
+        0.19753768043068698,
+        0.1782014138311494,
+        0.14142164913052835,
+        0.09079864595740963
+      ]
+    }
+  },
+  "script_version": "unknown"
+}
