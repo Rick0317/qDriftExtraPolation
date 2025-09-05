@@ -22,9 +22,9 @@ from qiskit.quantum_info import SparsePauliOp
 from qiskit import transpile
 from qiskit.circuit.library import PauliEvolutionGate
 
-from src.algorithms.algos_optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, make_pauli_gate_cache, build_template_circuit, build_qdrift_trajectory
+from src.algorithms.optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, make_pauli_gate_cache, build_template_circuit, build_qdrift_trajectory
 
-from src.algorithms.algos_qft_qpe_qdrift_latest import generate_ising_hamiltonian
+from src.algorithms.unoptimized_qft_qpe_qdrift import generate_ising_hamiltonian
 
 @dataclass
 class QPEResult:
