@@ -7,6 +7,7 @@ from importlib import metadata
 from re import M
 import sys
 import pathlib
+import re
 
 from zmq import device
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))  # add root to path
@@ -28,7 +29,6 @@ from qiskit.circuit.library import PauliEvolutionGate
 from qiskit.circuit import Parameter
 
 from src.algorithms.algos_optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, make_pauli_gate_cache, build_template_circuit, build_qdrift_trajectory
-
 from src.algorithms.algos_qft_qpe_qdrift_latest import generate_ising_hamiltonian
 from src.algorithms.chebyshev import chebyshev_nodes
 
@@ -66,18 +66,23 @@ ISING_J, ISING_G = 1.2, 1
 PLACEHOLDER = "_I_"
 
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
-    "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZ", coeffs=np.pi / 4),
-    "H_many_diag_terms" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([1/10, -2/10, 3/10, 4/10])) 
+    # "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZ", coeffs=np.pi / 4),
+    # "H_many_diag_terms" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([1/10, -2/10, 3/10, 4/10])),
+    # "H_many_diag_terms_1" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([1/10, 2/10, 3/10, 4/10])),
+    "H_many_diag_terms_3" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([4/5, 2/3, 4/5, 4/5])),
+    "H_many_diag_terms_0.5" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([2/20, 1/20, 3/20, 4/20])),
+    "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.5, g=ISING_G * 0.5) 
 }
 
-NUM_ANCILLA  = [14, 15]  # number of ancilla qubits
+NUM_ANCILLA  = [14]  # number of ancilla qubits
 
 chebyshev_nodes = np.array(chebyshev_nodes(10))
-scaled_nodes_pos = 0.000001 + (0.2 - 0.000001) * chebyshev_nodes[:4]
+scaled_nodes_pos = 0.000001 + (0.1 - 0.000001) * chebyshev_nodes[:5]
 TIMES     = scaled_nodes_pos #np.logspace(-10, 1, base=2, num=20)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [200]
-SHOTS_PER_CIRCUIT = [1]
+RANDOM_CIRCUITS_PER_DATAPOINT = [100]
+SHOTS_PER_CIRCUIT = [1024]
+REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
 TEST_ID = uuid4()
@@ -231,6 +236,27 @@ def analyse_counts(counts: dict[str,int],
     return ml_bitstr, e_med, e_mean, e_std, e_min, e_max
 
 
+def int_to_bitstring(value: int, m: int) -> str:
+    """
+    Convert an integer to a binary bitstring of fixed length `m`.
+
+    Args:
+        value (int): The integer to convert. Must be non-negative and less than 2**m.
+        m (int): The desired length of the output bitstring.
+
+    Returns:
+        str: Binary representation of `value` as a zero-padded bitstring of length `m`.
+
+    Raises:
+        ValueError: If `value` is negative or cannot be represented with `m` bits.
+    """
+    if value < 0:
+        raise ValueError("value must be non-negative")
+    if value >= 2**m:
+        raise ValueError(f"value {value} cannot be represented with {m} bits")
+
+    return format(value, f"0{m}b")
+
 # =========================================================================
 #   worker function – executed inside each worker process
 # =========================================================================
@@ -247,6 +273,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
     n_circuits   = experimental_conditions["circuits"]
     shots        = experimental_conditions["shots"]
     total_time   = experimental_conditions["time"]
+    trajectory_report_protocol = experimental_conditions["trajectory_report_protocol"]
 
     # ─── static Hamiltonian info (used only for ground-truth) ────
     H       = HAMILTONIANS_TO_TEST[ham_key]
@@ -282,6 +309,26 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
         counts_i = _LOCAL.backend.run(
             qc_t, shots=shots, seed_simulator=int(sim_seed)
         ).result().get_counts()
+
+        if (trajectory_report_protocol["group"] == True) and (shots > 1): # no shorthand pretencious syntax
+            keys = np.array(list(counts_i.keys()))
+            freqs = np.array(list(counts_i.values()))
+            expanded_arrrr = np.repeat(keys, freqs) 
+            print("DEBUG: sample values:", expanded_arrrr[:10])
+            expanded_arrrr = np.array([int(bs, 2) for bs in expanded_arrrr]) # it's easier to calculate median from a list of ints than from a list of binary bitstrings
+
+            if trajectory_report_protocol["group_by"] == "median":
+                # just report the median measured bitstring 
+                print("DEBUG: sample values:", expanded_arrrr[:10])
+                median = np.median(expanded_arrrr)  # np.median sorts internally, for large number of shots this is inefficient 
+                median_int = int(round(median))
+                median_bin = int_to_bitstring(value=median_int, m=n_anc)
+                counts_i = {median_bin : 1}
+                
+            elif trajectory_report_protocol["group_by"] == "mean":
+                pass
+            elif trajectory_report_protocol["group_by"] == "mode":
+                pass
 
         # merge counts
         for k, v in counts_i.items():
@@ -333,7 +380,8 @@ def main(verbose_export = False) -> None:
         REPLICATION_SEEDS,            # outer repetition
         RANDOM_CIRCUITS_PER_DATAPOINT,
         SHOTS_PER_CIRCUIT,
-        ESTIMATE_GROUND_STATE         # whether to estimate the ground state
+        ESTIMATE_GROUND_STATE,         # whether to estimate the ground state,
+        REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT
     )
 
     # serialise each tuple into a plain dict for _run
@@ -344,7 +392,9 @@ def main(verbose_export = False) -> None:
                  replication_seed = g[4],
                  circuits         = g[5],
                  shots            = g[6],
-                 ground_state     = g[7])
+                 ground_state     = g[7],
+                 trajectory_report_protocol = g[8]
+                 )
             for g in grid]
     
     # dump the full experiment grid to JSON (once)
@@ -402,7 +452,7 @@ def main(verbose_export = False) -> None:
 
     # run the sweep in parallel
     n_proc = min(os.cpu_count() or 1, 16)
-    with Pool(processes=n_proc//2 ) as pool:
+    with Pool(processes=n_proc - 2 ) as pool:
         print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
         for result in pool.imap_unordered(run_simulation, cfgs):
             with csv_path.open("a", newline="") as fh:

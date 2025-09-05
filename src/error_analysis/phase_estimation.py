@@ -149,28 +149,5 @@ if __name__ == "__main__":
 
 
 
-    '''
-    # Create a pandas dataframe to store the results
-    df = pd.DataFrame(columns=['Matrix', 'True Eigenvalue', 'Average Estimation Error', 'Max Estimation Error', 'Variance in MLE estimates of p_0', 'Fisher Information lower Bound'])
-    for i, (test_hermitian, estimation_errors) in enumerate(zip(random_hermitians, all_estimation_errors.values())):
-        exact_eigenvalue, _ = scipy.linalg.eig(test_hermitian)
-        df.loc[i] = [test_hermitian, min(exact_eigenvalue), np.mean(estimation_errors), max(estimation_errors), all_estimation_variances[i][0], all_estimation_variances[i][1]]
-    
-    # Write df to excel file
-    with pd.ExcelWriter('estimation_errors.xlsx') as writer:
-        df.to_excel(writer, sheet_name='Estimation Errors', index=False)
-        workbook = writer.book
-        worksheet = writer.sheets['Estimation Errors']
-    '''
-    
-    
-
-
-
-
-
-
-
-
 
 

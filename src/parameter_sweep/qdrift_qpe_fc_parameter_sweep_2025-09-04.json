@@ -1,0 +1,87 @@
+{
+  "generated_utc": "2025-09-04T08:14:36Z",
+  "metadata": {
+    "num_configs": 15,
+    "static_parameters": {
+      "Random_seed(s)": [
+        42
+      ],
+      "num_system_qubits": 2
+    },
+    "sweep_space": {
+      "Hamiltonians": [
+        {
+          "coeffs": "[0.8       +0.j 0.66666667+0.j 0.8       +0.j 0.8       +0.j]",
+          "eigenvalue to estimate": [
+            3.0666666666666664,
+            0.13333333333333341,
+            0.1333333333333333,
+            -0.13333333333333341
+          ],
+          "paulis": [
+            "ZI",
+            "ZZ",
+            "IZ",
+            "II"
+          ],
+          "type": "H_many_diag_terms_3"
+        },
+        {
+          "coeffs": "[0.1 +0.j 0.05+0.j 0.15+0.j 0.2 +0.j]",
+          "eigenvalue to estimate": [
+            0.5,
+            0.10000000000000002,
+            0.19999999999999998,
+            0.0
+          ],
+          "paulis": [
+            "ZI",
+            "ZZ",
+            "IZ",
+            "II"
+          ],
+          "type": "H_many_diag_terms_0.5"
+        },
+        {
+          "coeffs": "[-0.6+0.j -0.6+0.j -0.5+0.j -0.5+0.j]",
+          "eigenvalue to estimate": [
+            1.5620499351813293,
+            -1.2000000000000006,
+            -1.5620499351813304,
+            1.2
+          ],
+          "paulis": [
+            "ZZ",
+            "ZZ",
+            "XI",
+            "IX"
+          ],
+          "type": "H_ising"
+        }
+      ],
+      "calculate_ground_state": [
+        false
+      ],
+      "num_ancilla": [
+        14
+      ],
+      "num_independent_stochastic_circuits_per_datapoint": [
+        100
+      ],
+      "num_qdrift_segments_per_qdrift_channel_invocation": [
+        1
+      ],
+      "num_shots_per_circuit": [
+        1024
+      ],
+      "t": [
+        0.09876884637117318,
+        0.0891007614123126,
+        0.07071097101187357,
+        0.04539959598345495,
+        0.015644290069558055
+      ]
+    }
+  },
+  "script_version": "unknown"
+}
