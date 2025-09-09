@@ -19,6 +19,7 @@ from multiprocessing import Pool, cpu_count
 from memory_profiler import memory_usage
 import tracemalloc, time, psutil, threading, time, os
 from uuid import uuid4
+import warnings
 
 import numpy as np
 from qiskit_aer import AerSimulator
@@ -32,6 +33,102 @@ from src.algorithms.optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, 
 from src.algorithms.unoptimized_qft_qpe_qdrift import generate_ising_hamiltonian
 from src.algorithms.chebyshev import chebyshev_nodes
 
+
+# Define the integrals
+h00 = h11 = -1.252477
+h22 = h33 = -0.475934
+h0110 = 0.674493
+h2332 = 0.697397
+h0220 = h0330 = h1221 = h1331 = 0.663472
+h0202 = h1313 = h0312 = h0132 = 0.181287
+
+# Calculate coefficients for each Pauli string
+coeffs = [
+    # IIII
+    0.5*(h00 + h11 + h22 + h33) + 0.25*(h0110 + h2332 + h0330 + h1221 + h0220 - h0202 + h1331 - h1313),
+    # ZIII
+    -0.5*h00 - 0.25*(h0110 + h0330 + h0220 - h0202),
+    # IZII
+    0.25*h0110,
+    # IIZI
+    -0.5*h22 - 0.25*(h2332 + h1221 + h0220 - h0202),
+    # ZZII
+    -0.5*h11 - 0.25*(h0110 + h1221 + h1331 - h1313),
+    # ZIZI
+    0.25*(h0220 - h0202),
+    # IZIZ
+    0.25*h2332,
+    # XZXI
+    0.125*(h0132 + h0312),
+    # YZYI
+    0.125*(h0132 + h0312),
+    # ZZZI
+    0.25*h1221,
+    # ZIZZ
+    0.25*(h1331 - h1313),
+    # IZZZ
+    -0.5*h33 - 0.25*(h2332 + h0330 + h1331 - h1313),
+    # XZXZ
+    0.125*(h0132 + h0312),
+    # YZYZ
+    0.125*(h0132 + h0312),
+    # ZZZZ
+    0.25*h0330
+]
+
+def calculate_minimum_evolution_time(hamiltonians: Dict[str, SparsePauliOp], 
+                                   m: int) -> Dict[str, float]:
+    """
+    Calculate the minimum evolution time t for each Hamiltonian given m bits of precision.
+    
+    For QPE, we need to satisfy the constraint: λt > 1/(2^m * t)
+    
+    Rearranging: λt² > 1/2^m
+    Therefore: t > sqrt(1/(2^m * λ))
+    
+    The minimum evolution time is: t_min = sqrt(1/(2^m * λ))
+    
+    Args:
+        hamiltonians: Dict mapping names to SparsePauliOp objects
+        m: Number of precision bits for QPE
+        
+    Returns:
+        Dict mapping Hamiltonian names to minimum evolution times
+    """
+    if m <= 0:
+        raise ValueError("Number of precision bits m must be positive")
+    
+    results = {}
+    
+    for name, hamiltonian in hamiltonians.items():
+        if not isinstance(hamiltonian, SparsePauliOp):
+            raise TypeError(f"Hamiltonian '{name}' must be a SparsePauliOp")
+        
+        # Calculate the largest eigenvalue magnitude (spectral norm)
+        # For Pauli operators, this is the sum of absolute values of coefficients
+        lambda_max = np.sum(np.abs(hamiltonian.coeffs))
+        
+        if lambda_max == 0:
+            warnings.warn(f"Hamiltonian '{name}' has zero norm, setting t_min to infinity")
+            results[name] = float('inf')
+            continue
+        
+        # Calculate minimum evolution time: t_min = sqrt(1/(2^m * λ))
+        t_min = np.sqrt(1.0 / (2**m * lambda_max))
+        results[name] = float(t_min)
+    
+    return results
+
+# Create the SparsePauliOp
+H_H2 = SparsePauliOp(
+    data=["IIII", 
+          "ZIII", "IZII", "IIZI", 
+          "ZZII", "ZIZI", "IZIZ", 
+          "XZXI", "YZYI", 
+          "ZZZI", "ZIZZ", "IZZZ", 
+          "XZXZ", "YZYZ", 
+          "ZZZZ"],
+    coeffs=coeffs)
 
 @dataclass
 class QPEResult:
@@ -61,27 +158,30 @@ class QPEResult:
 # ════════════════════════════════════════════════════════════════════════════
 #  Parameter grid and constants
 # ════════════════════════════════════════════════════════════════════════════
-NUM_SYSTEM_QUBITS  = 2
+NUM_SYSTEM_QUBITS  = 4
 ISING_J, ISING_G = 1.2, 1
 PLACEHOLDER = "_I_"
 
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
-    # "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZ", coeffs=np.pi / 4),
-    # "H_many_diag_terms" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([1/10, -2/10, 3/10, 4/10])),
-    # "H_many_diag_terms_1" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([1/10, 2/10, 3/10, 4/10])),
-    "H_many_diag_terms_3" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([4/5, 2/3, 4/5, 4/5])),
-    "H_many_diag_terms_0.5" : SparsePauliOp(data=["ZI", "ZZ", "IZ", "II"], coeffs=np.array([2/20, 1/20, 3/20, 4/20])),
+    # "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZZZ", coeffs=np.pi / 4),
+    "H2_minimal_basis": H_H2,
     "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.5, g=ISING_G * 0.5) 
 }
 
-NUM_ANCILLA  = [14]  # number of ancilla qubits
+NUM_ANCILLA  = [12]  # number of ancilla qubits
 
-chebyshev_nodes = np.array(chebyshev_nodes(10))
-scaled_nodes_pos = 0.000001 + (0.1 - 0.000001) * chebyshev_nodes[:5]
-TIMES     = scaled_nodes_pos #np.logspace(-10, 1, base=2, num=20)
+# chebyshev_nodes = np.array(chebyshev_nodes(10))
+# scaled_nodes_pos = 0.000001 + (0.1 - 0.000001) * chebyshev_nodes[:5]
+
+qpe_resolution_limits = calculate_minimum_evolution_time(hamiltonians=HAMILTONIANS_TO_TEST, m=min(NUM_ANCILLA))
+print(qpe_resolution_limits)
+t_min_global = max(qpe_resolution_limits.values())
+lower_bound = max(1e-10, t_min_global * 0.01)  # Don't go below 1% of t_min
+upper_bound = min(1e1, t_min_global * 1000)    # Don't exceed 1000× t_min
+TIMES = np.logspace(np.log2(lower_bound), np.log2(upper_bound), base=2, num=12)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
 RANDOM_CIRCUITS_PER_DATAPOINT = [100]
-SHOTS_PER_CIRCUIT = [1024]
+SHOTS_PER_CIRCUIT = [1, 100]
 REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
@@ -314,12 +414,12 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
             keys = np.array(list(counts_i.keys()))
             freqs = np.array(list(counts_i.values()))
             expanded_arrrr = np.repeat(keys, freqs) 
-            print("DEBUG: sample values:", expanded_arrrr[:10])
+            # print("DEBUG: sample values:", expanded_arrrr[:10])
             expanded_arrrr = np.array([int(bs, 2) for bs in expanded_arrrr]) # it's easier to calculate median from a list of ints than from a list of binary bitstrings
 
             if trajectory_report_protocol["group_by"] == "median":
                 # just report the median measured bitstring 
-                print("DEBUG: sample values:", expanded_arrrr[:10])
+                # print("DEBUG: sample values:", expanded_arrrr[:10])
                 median = np.median(expanded_arrrr)  # np.median sorts internally, for large number of shots this is inefficient 
                 median_int = int(round(median))
                 median_bin = int_to_bitstring(value=median_int, m=n_anc)
@@ -452,7 +552,7 @@ def main(verbose_export = False) -> None:
 
     # run the sweep in parallel
     n_proc = min(os.cpu_count() or 1, 16)
-    with Pool(processes=n_proc - 2 ) as pool:
+    with Pool(processes=n_proc//2) as pool:
         print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
         for result in pool.imap_unordered(run_simulation, cfgs):
             with csv_path.open("a", newline="") as fh:
