@@ -30,36 +30,6 @@ Hamiltonian = list[tuple[coefficient, Pauli]]
 
 # ---------------------------------------------------- utils ----------------------------------------------------
 
-@profile
-def generate_ising_hamiltonian(num_qubits: int, J, g) -> SparsePauliOp:
-    z_terms = []
-    z_coeffs = []
-    
-    # ZZ interaction terms
-    for j in range(num_qubits):
-        pauli_string = ['I'] * num_qubits
-        pauli_string[j] = 'Z'
-        pauli_string[(j + 1) % num_qubits] = 'Z'  # Periodic boundary conditions
-        z_terms.append("".join(pauli_string))
-        z_coeffs.append(-J)  # Coefficient for ZZ interaction
-
-    x_terms = []
-    x_coeffs = []
-    
-    # X field terms
-    for j in range(num_qubits):
-        pauli_string = ['I'] * num_qubits
-        pauli_string[j] = 'X'
-        x_terms.append("".join(pauli_string))
-        x_coeffs.append(-g)  # Coefficient for X term
-
-    # Combine the Z and X terms into a single Hamiltonian
-    all_terms = z_terms + x_terms
-    all_coeffs = z_coeffs + x_coeffs
-
-    return SparsePauliOp(all_terms, coeffs=all_coeffs)
-
-
 def exponentiate_hamiltonian(hamiltonian: SparsePauliOp, time: float) -> Operator:
     """Exponentiates the Hamiltonian to obtain U = e^(-i H t)."""
     matrix = hamiltonian.to_matrix()

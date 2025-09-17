@@ -1,7 +1,4 @@
-"""
-Parameter sweep for the *optimised* qDRIFT–QPE implementation.
-Produces a CSV that contains the same rich set of statistical indicators
-"""
+
 from __future__ import annotations
 from importlib import metadata
 from re import M
@@ -21,6 +18,7 @@ import tracemalloc, time, psutil, threading, time, os
 from uuid import uuid4
 import warnings
 
+
 import numpy as np
 from qiskit_aer import AerSimulator
 from qiskit import QuantumCircuit
@@ -30,129 +28,36 @@ from qiskit.circuit.library import PauliEvolutionGate
 from qiskit.circuit import Parameter
 
 from src.algorithms.optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, make_pauli_gate_cache, build_template_circuit, build_qdrift_trajectory
-from src.algorithms.unoptimized_qft_qpe_qdrift import generate_ising_hamiltonian
 from src.algorithms.chebyshev import chebyshev_nodes
-
-
-# Define the integrals
-h00 = h11 = -1.252477
-h22 = h33 = -0.475934
-h0110 = 0.674493
-h2332 = 0.697397
-h0220 = h0330 = h1221 = h1331 = 0.663472
-h0202 = h1313 = h0312 = h0132 = 0.181287
-
-# Calculate coefficients for each Pauli string
-coeffs = [
-    # IIII
-    0.5*(h00 + h11 + h22 + h33) + 0.25*(h0110 + h2332 + h0330 + h1221 + h0220 - h0202 + h1331 - h1313),
-    # ZIII
-    -0.5*h00 - 0.25*(h0110 + h0330 + h0220 - h0202),
-    # IZII
-    0.25*h0110,
-    # IIZI
-    -0.5*h22 - 0.25*(h2332 + h1221 + h0220 - h0202),
-    # ZZII
-    -0.5*h11 - 0.25*(h0110 + h1221 + h1331 - h1313),
-    # ZIZI
-    0.25*(h0220 - h0202),
-    # IZIZ
-    0.25*h2332,
-    # XZXI
-    0.125*(h0132 + h0312),
-    # YZYI
-    0.125*(h0132 + h0312),
-    # ZZZI
-    0.25*h1221,
-    # ZIZZ
-    0.25*(h1331 - h1313),
-    # IZZZ
-    -0.5*h33 - 0.25*(h2332 + h0330 + h1331 - h1313),
-    # XZXZ
-    0.125*(h0132 + h0312),
-    # YZYZ
-    0.125*(h0132 + h0312),
-    # ZZZZ
-    0.25*h0330
-]
-
-def calculate_minimum_evolution_time(hamiltonians: Dict[str, SparsePauliOp], 
-                                   m: int) -> Dict[str, float]:
-    """
-    Calculate the minimum evolution time t for each Hamiltonian given m bits of precision.
-    
-    For QPE, we need to satisfy the constraint: λt > 1/(2^m * t)
-    
-    Rearranging: λt² > 1/2^m
-    Therefore: t > sqrt(1/(2^m * λ))
-    
-    The minimum evolution time is: t_min = sqrt(1/(2^m * λ))
-    
-    Args:
-        hamiltonians: Dict mapping names to SparsePauliOp objects
-        m: Number of precision bits for QPE
-        
-    Returns:
-        Dict mapping Hamiltonian names to minimum evolution times
-    """
-    if m <= 0:
-        raise ValueError("Number of precision bits m must be positive")
-    
-    results = {}
-    
-    for name, hamiltonian in hamiltonians.items():
-        if not isinstance(hamiltonian, SparsePauliOp):
-            raise TypeError(f"Hamiltonian '{name}' must be a SparsePauliOp")
-        
-        # Calculate the largest eigenvalue magnitude (spectral norm)
-        # For Pauli operators, this is the sum of absolute values of coefficients
-        lambda_max = np.sum(np.abs(hamiltonian.coeffs))
-        
-        if lambda_max == 0:
-            warnings.warn(f"Hamiltonian '{name}' has zero norm, setting t_min to infinity")
-            results[name] = float('inf')
-            continue
-        
-        # Calculate minimum evolution time: t_min = sqrt(1/(2^m * λ))
-        t_min = np.sqrt(1.0 / (2**m * lambda_max))
-        results[name] = float(t_min)
-    
-    return results
+from src.utils.generate_hamiltonians import calculate_minimum_evolution_time, create_h2_minimal_basis_hamiltonian, generate_ising_hamiltonian
+from src.utils.memory_profiling_utils import *
+from src.utils.qpe_postprocessing_utils import analyse_counts, int_to_bitstring
 
 # Create the SparsePauliOp
-H_H2 = SparsePauliOp(
-    data=["IIII", 
-          "ZIII", "IZII", "IIZI", 
-          "ZZII", "ZIZI", "IZIZ", 
-          "XZXI", "YZYI", 
-          "ZZZI", "ZIZZ", "IZZZ", 
-          "XZXZ", "YZYZ", 
-          "ZZZZ"],
-    coeffs=coeffs)
+H_H2 = create_h2_minimal_basis_hamiltonian()
 
 @dataclass
 class QPEResult:
     ham : str
+    exact_eig : float
     num_system_qubits : int
     num_ancilla : int
-    time : float
-    segments : int
+    alpha : float # sum of Hamiltonian coefficients
     replication_seed : int
     n_circuits : int
     n_shots : int
-    peak_MB : float  # peak memory usage in MB
-    runtime : float  # runtime in seconds
-    exact_eig : float
+    time : float
+    segments : int
+    
     most_likely_bs : str
     est_energy_med : float
     est_energy_mean : float
     est_energy_std  : float
-    est_energy_min  : float
-    est_energy_max  : float
     estimation_error : float
-    alpha : float # sum of Hamiltonian coefficients
     max_theoretical_qdrift_error: float
-
+    peak_MB : float  # peak memory usage in MB
+    runtime : float  # runtime in seconds
+    top10_py_allocs : str  # report from tracemalloc
     counts          : str  # json-encoded
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -168,7 +73,7 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.5, g=ISING_G * 0.5) 
 }
 
-NUM_ANCILLA  = [12]  # number of ancilla qubits
+NUM_ANCILLA  = [15]  # number of ancilla qubits
 
 # chebyshev_nodes = np.array(chebyshev_nodes(10))
 # scaled_nodes_pos = 0.000001 + (0.1 - 0.000001) * chebyshev_nodes[:5]
@@ -176,9 +81,9 @@ NUM_ANCILLA  = [12]  # number of ancilla qubits
 qpe_resolution_limits = calculate_minimum_evolution_time(hamiltonians=HAMILTONIANS_TO_TEST, m=min(NUM_ANCILLA))
 print(qpe_resolution_limits)
 t_min_global = max(qpe_resolution_limits.values())
-lower_bound = max(1e-10, t_min_global * 0.01)  # Don't go below 1% of t_min
-upper_bound = min(1e1, t_min_global * 1000)    # Don't exceed 1000× t_min
-TIMES = np.logspace(np.log2(lower_bound), np.log2(upper_bound), base=2, num=12)
+lower_bound = max(1e-10, t_min_global * 0.9)  # Don't go below 90% of t_min
+upper_bound = min(1e1, t_min_global * 1000)    # Don't exceed 100× t_min
+TIMES = np.logspace(np.log2(lower_bound), np.log2(upper_bound), base=2, num=20)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
 RANDOM_CIRCUITS_PER_DATAPOINT = [100]
 SHOTS_PER_CIRCUIT = [1, 100]
@@ -237,131 +142,12 @@ class LocalResources:
 
 _LOCAL = LocalResources()
 
-# =========================================================================
-#  Lightweight, multiprocessing-friendly memory profiler
-# =========================================================================
-
-def _peak_rss_during(fn, *, dt: float = 0.05):
-    """
-    Run `fn()` and return    (result, peak_RSS_in_MiB).
-
-    The RSS (resident-set size) is sampled inside the *same* process,
-    hence no fork is required – fully compatible with daemon workers.
-
-    Parameters
-    ----------
-    fn : Callable[[], T]
-        Workload whose memory profile we want to observe.
-    dt : float, default 0.05
-        Sampling period in seconds. 50 ms gives <1 % CPU overhead while
-        detecting peaks that last a few scheduler quanta.
-
-    Notes
-    -----
-    • We use a daemon `threading.Thread` because daemonic processes are
-      not allowed to start child *processes*.
-    • The value returned is the true high-water-mark of resident memory
-      (not Python allocations only).  Interpreting RSS still requires
-      caution, similar to how the term RSS can be mis-read in other
-      domains such as solar-activity proxies [1].
-
-    Returns
-    -------
-    (T, float)
-        The original return value of `fn` and the peak RSS in MiB.
-    """
-    proc        = psutil.Process()
-    peak_bytes  = 0
-    stop_signal = threading.Event()
-
-    def poll():
-        nonlocal peak_bytes
-        while not stop_signal.is_set():
-            rss_now = proc.memory_info().rss
-            if rss_now > peak_bytes:
-                peak_bytes = rss_now
-            time.sleep(dt)
-
-    sampler = threading.Thread(target=poll, daemon=True)
-    sampler.start()
-    try:
-        retval = fn()
-    finally:
-        stop_signal.set()
-        sampler.join()
-
-    return retval, peak_bytes / 1024**2   # bytes → MiB
-
-
-def profile_mp(func):
-    @wraps(func)
-    def _w(*a, **k):
-        tracemalloc.start()
-        t0 = time.perf_counter()
-        result, peak_psutil = _peak_rss_during(lambda: func(*a, **k))
-        runtime = time.perf_counter() - t0
-
-        # ─── extract top-N allocation sites ────────────────────────
-        snapshot = tracemalloc.take_snapshot()
-        stats    = snapshot.statistics("lineno")[:10]     # top-10
-        top10    = "; ".join(f"{st.traceback[0]}: {st.size/1024:.1f} KiB"
-                             for st in stats)
-        result.top10_py_alloc  = top10
-        result.peak_MB         = peak_psutil
-        result.runtime       = runtime
-        tracemalloc.stop()
-        return result
-    return _w
-
-# ════════════════════════════════════════════════════════════════════════════
-# post-processing helpers
-# ════════════════════════════════════════════════════════════════════════════
-def analyse_counts(counts: dict[str,int],
-                   t: float,
-                   m: int,
-                   wrapp_around_correction: bool=True) -> tuple[str, float,float,float,float,float,float]:
-    ml_bitstr  = max(counts, key=counts.get)
-    # translate bitstrings ↦ energies
-    energies_weighted = []
-    for bs, c in counts.items():
-        phase = int(bs, 2) / 2**m
-        if phase > .5 and wrapp_around_correction:                         # map to (-.5,.5]
-            phase -= 1
-        energy = 2*np.pi*phase / t
-        energies_weighted += [energy]*c
-    e_med  = statistics.median(energies_weighted)
-    e_mean = statistics.mean  (energies_weighted)
-    e_std  = statistics.stdev (energies_weighted) if len(energies_weighted)>1 else 0
-    e_min, e_max = min(energies_weighted), max(energies_weighted)
-    return ml_bitstr, e_med, e_mean, e_std, e_min, e_max
-
-
-def int_to_bitstring(value: int, m: int) -> str:
-    """
-    Convert an integer to a binary bitstring of fixed length `m`.
-
-    Args:
-        value (int): The integer to convert. Must be non-negative and less than 2**m.
-        m (int): The desired length of the output bitstring.
-
-    Returns:
-        str: Binary representation of `value` as a zero-padded bitstring of length `m`.
-
-    Raises:
-        ValueError: If `value` is negative or cannot be represented with `m` bits.
-    """
-    if value < 0:
-        raise ValueError("value must be non-negative")
-    if value >= 2**m:
-        raise ValueError(f"value {value} cannot be represented with {m} bits")
-
-    return format(value, f"0{m}b")
 
 # =========================================================================
 #   worker function – executed inside each worker process
 # =========================================================================
 
-@profile_mp #custom decorator that profiles memory and runtime
+@profile_memory_and_time #custom decorator that profiles memory and runtime
 def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
     """Run one data-point of the parameter sweep."""
     print("Running worker from process", os.getpid())
@@ -452,19 +238,18 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
         replication_seed = experimental_conditions["replication_seed"],
         n_circuits       = n_circuits,
         n_shots          = shots,
-        peak_MB          = 0.0,     # overwritten by @profile_mp
-        runtime          = 0.0,     # overwritten by @profile_mp
+        peak_MB          = 0.0,     # overwritten by @profile_memory_and_time
+        runtime          = 0.0,     # overwritten by @profile_memory_and_time
         exact_eig        = exact_eig,
         max_theoretical_qdrift_error = 2 * sum(abs(H.coeffs)) ** 2 * total_time * np.exp(2 * sum(abs(H.coeffs)) * total_time),
         most_likely_bs   = ml_bs,
         est_energy_med   = e_med,
         est_energy_mean  = e_mean,
         est_energy_std   = e_std,
-        est_energy_min   = e_min,
-        est_energy_max   = e_max,
         estimation_error = error,
         alpha            = sum(abs(H.coeffs)),
         counts           = json.dumps(total_counts, sort_keys=True),
+        top10_py_allocs  = "",      # overwritten by @profile_memory_and_time
     )
 
 # =========================================================================

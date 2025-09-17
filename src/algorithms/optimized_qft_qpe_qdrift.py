@@ -104,8 +104,7 @@ def build_qdrift_trajectory(
         n_qdrift_segments: Optional[int],
         placeholder_label: str,
         template_circuit: QuantumCircuit,
-        exponentialed_hamiltonian_terms_cache: Union[Dict[str, PauliEvolutionGate], PauliGateCache], # I tried two different cache schemas and this has to accommodate both
-        use_exp_ham_terms_cache: bool = True
+        exponentialed_hamiltonian_terms_cache: Union[Dict[str, PauliEvolutionGate], PauliGateCache] # I tried two different cache schemas and this has to accommodate both
 ) -> QuantumCircuit:
     """
     Return ONE qDRIFT-QPE circuit whose unitary equals the stochastic product
@@ -144,25 +143,6 @@ def build_qdrift_trajectory(
             qc.append(new_gate, instruction.qubits, instruction.clbits)
         else:
             qc.append(instruction.operation, instruction.qubits, instruction.clbits)
-
-    '''
-    c1, c2 = 0, 0
-    for instruction in template_qc.data:
-        if placeholder_label in instruction.operation.name:
-            chosen_word = next(word_iterator)
-            new_gate = exponentialed_hamiltonian_terms_cache[chosen_word]
-            new_gate.name = f"ctrl-evolution-{chosen_word}"  # explicitly name the
-            new_instruction = CircuitInstruction(new_gate, instruction.qubits, instruction.clbits)
-            new_data.append(new_instruction)
-            c1 += 1
-        else:
-            new_data.append(instruction)
-            c2 += 1
-    assert c1 > 0, "No placeholders were replaced in the template circuit."
-    assert next(word_iterator, None) is None, "Not all words consumed"
-    template_qc.data = new_data
-    # print(f"New circuit data: {template_qc.data}")
-    '''
     
     lam = np.sum(np.abs(H.coeffs))
     tau_val = (lam * total_time) / n_qdrift_segments if n_qdrift_segments > 0 else 0
