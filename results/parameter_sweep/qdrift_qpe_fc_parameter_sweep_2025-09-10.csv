@@ -1,0 +1,1 @@
+ham,exact_eig,num_system_qubits,num_ancilla,alpha,replication_seed,n_circuits,n_shots,time,segments,most_likely_bs,est_energy_med,est_energy_mean,est_energy_std,estimation_error,max_theoretical_qdrift_error,peak_MB,runtime,top10_py_allocs,counts

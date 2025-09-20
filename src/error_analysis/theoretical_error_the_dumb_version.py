@@ -5,19 +5,17 @@ from typing import Dict, Optional, Tuple
 from scipy.optimize import brentq
 
 # Error models
-def qdrift_error(t: np.ndarray, alpha: float, N: int) -> np.ndarray:
+def qdrift_error_avg_channel(t: np.ndarray, alpha: float, N: int) -> np.ndarray:
     return (2.0 * alpha**2 / N**2) * t * np.exp((2.0 * alpha / N) * t)
+
+def qdrfit_error_worst_case_single_trajectory(t: np.ndarray, alpha: float, N: int, n: int) -> np.ndarray:
+    return np.sqrt()
 
 def qpe_error(t: np.ndarray, m: int) -> np.ndarray:
     return (2.0 * np.pi / (2**m)) / t
 
 def sum_error(t: np.ndarray, alpha: float, N: int, m: int) -> np.ndarray:
-    return qdrift_error(t, alpha, N) + qpe_error(t, m)
-
-def rms_surrogate(t: np.ndarray, alpha: float, N: int, m: int) -> np.ndarray:
-    eq = qdrift_error(t, alpha, N)
-    ep = qpe_error(t, m)
-    return np.sqrt(eq**2 + ep**2)
+    return qdrift_error_avg_channel(t, alpha, N) + qpe_error(t, m)
 
 @dataclass
 class RegimeConfig:
@@ -127,7 +125,7 @@ def plot_errors_with_shading_and_edge_labels(alpha: float, m: int, N: int,
     # 3) Curves
     t_grid = np.geomspace(t_min, t_max, cfg.grid_points_for_plot)
     ep = qpe_error(t_grid, m)
-    eq = qdrift_error(t_grid, alpha, N)
+    eq = qdrift_error_avg_channel(t_grid, alpha, N)
     esum = ep + eq
     erms = np.sqrt(ep**2 + eq**2)
 
@@ -327,7 +325,7 @@ def plot_sim_results_with_regimes(df, alpha: float, m: int, N: int,
     t_grid = np.geomspace(t_min, t_max, 2000)
 
     ep = _safe_clip(qpe_error(t_grid, m))
-    eq = _safe_clip(qdrift_error(t_grid, alpha, N))
+    eq = _safe_clip(qdrift_error_avg_channel(t_grid, alpha, N))
     esum = _safe_clip(ep + eq)
     erms = _safe_clip(np.sqrt(ep**2 + eq**2))
 
