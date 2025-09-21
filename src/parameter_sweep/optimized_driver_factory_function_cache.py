@@ -70,7 +70,7 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1),
 }
 
-NUM_ANCILLA  = [10]  # number of ancilla qubits
+NUM_ANCILLA  = [15, 20]  # number of ancilla qubits
 
 # chebyshev_nodes = np.array(chebyshev_nodes(10))
 # scaled_nodes_pos = 0.000001 + (0.1 - 0.000001) * chebyshev_nodes[:5]
@@ -82,7 +82,7 @@ lower_bound = max(1e-10, t_min_global * 0.5)  # Don't go below 50% of t_min
 upper_bound = min(1e1, t_min_global * 400)    # Don't exceed 400× t_min
 TIMES = np.logspace(np.log2(lower_bound), np.log2(upper_bound), base=2, num=12)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [10000]
+RANDOM_CIRCUITS_PER_DATAPOINT = [100, 1000, 10000]
 SHOTS_PER_CIRCUIT = [1, 10]
 REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
@@ -144,9 +144,17 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool) -> QuantumCir
 # Local resources that should exist exactly once per worker
 # ════════════════════════════════════════════════════════════════════════════
 class LocalResources:
+
     @cached_property
     def backend(self):
-        return AerSimulator(method="matrix_product_state", device="CPU")
+        # pick this based on what you set below for workers/threads
+        max_threads = int(os.environ.get("AER_MAX_THREADS", "4"))
+        sim = AerSimulator(method="matrix_product_state", device="CPU",
+                           backend_options={
+                               "max_parallel_threads": max_threads,
+                               "statevector_parallel_threshold": 20
+                           })
+        return sim
 
 _LOCAL = LocalResources()
 
