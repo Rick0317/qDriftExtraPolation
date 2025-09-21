@@ -59,14 +59,15 @@ class QPEResult:
 # ════════════════════════════════════════════════════════════════════════════
 #  Parameter grid and constants
 # ════════════════════════════════════════════════════════════════════════════
-NUM_SYSTEM_QUBITS  = 3
+NUM_SYSTEM_QUBITS  = 1
 ISING_J, ISING_G = 1.2, 1
 PLACEHOLDER = "_I_"
 
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     # "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZZZ", coeffs=np.pi / 4),
     # "H2_minimal_basis": H_H2,
-    "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.7, g=ISING_G * 0.7) 
+    # "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.7, g=ISING_G * 0.7) 
+    "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1),
 }
 
 NUM_ANCILLA  = [10]  # number of ancilla qubits
@@ -81,7 +82,7 @@ lower_bound = max(1e-10, t_min_global * 0.5)  # Don't go below 50% of t_min
 upper_bound = min(1e1, t_min_global * 400)    # Don't exceed 400× t_min
 TIMES = np.logspace(np.log2(lower_bound), np.log2(upper_bound), base=2, num=12)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [100, 1000, 5000]
+RANDOM_CIRCUITS_PER_DATAPOINT = [10000]
 SHOTS_PER_CIRCUIT = [1, 10]
 REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
@@ -301,7 +302,7 @@ def main(verbose_export = False) -> None:
 
     # run the sweep in parallel
     n_proc = min(os.cpu_count() or 1, 16)
-    with Pool(processes=n_proc - 1) as pool:
+    with Pool(processes=n_proc//2) as pool:
         print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
         for result in pool.imap_unordered(run_simulation, cfgs):
             append_csv(csv_path, fieldnames, result)
