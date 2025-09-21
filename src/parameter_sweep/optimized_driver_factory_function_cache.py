@@ -209,7 +209,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
             batch_circuits.append(qc)
         
         # Transpile the entire batch at once for efficiency
-        transpiled_batch = transpile(batch_circuits, backend=_LOCAL.backend)
+        transpiled_batch = transpile( batch_circuits, backend=_LOCAL.backend, optimization_level=0)
         
         # Execute the entire batch at once
         seeds_for_batch = [ss.generate_state(1)[0] for ss in batch_ss]
@@ -255,7 +255,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
 # =========================================================================
 # driving script – build the grid and launch a Pool
 # =========================================================================
-def main(verbose_export = False) -> None:
+def main(verbose_export = False, parallel = False) -> None:
     # full Cartesian product of all sweep parameters
     grid = itertools.product(
         HAMILTONIANS_TO_TEST.keys(),
@@ -308,11 +308,17 @@ def main(verbose_export = False) -> None:
     fieldnames = list(QPEResult.__dataclass_fields__.keys())
     init_csv(csv_path, fieldnames)
 
-    # run the sweep in parallel
-    n_proc = min(os.cpu_count() or 1, 16)
-    with Pool(processes=n_proc//2) as pool:
-        print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
-        for result in pool.imap_unordered(run_simulation, cfgs):
+    if parallel:
+        # run the sweep in parallel
+        n_proc = min(os.cpu_count() or 1, 16)
+        with Pool(processes=n_proc//2) as pool:
+            print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
+            for result in pool.imap_unordered(run_simulation, cfgs):
+                append_csv(csv_path, fieldnames, result)
+    else:
+        print(f"Running {len(cfgs)} configurations sequentially.")
+        for cfg in cfgs:
+            result = run_simulation(cfg)
             append_csv(csv_path, fieldnames, result)
 # entry-point
 if __name__ == "__main__":

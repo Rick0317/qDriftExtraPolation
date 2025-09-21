@@ -37,7 +37,7 @@ def prepare_eigenstate_circuit(ground_state: np.ndarray) -> QuantumCircuit:
     qc = QuantumCircuit(num_qubits)
     init_gate = Initialize(ground_state)
     qc.append(init_gate, range(num_qubits))
-    return qc
+    return qc.decompose()  # decompose to basic gates
 
 
 def make_pauli_gate_cache(H: SparsePauliOp,
