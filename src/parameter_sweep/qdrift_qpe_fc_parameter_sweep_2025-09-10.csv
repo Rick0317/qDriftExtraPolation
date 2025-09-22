@@ -1,1 +1,0 @@
-ham,num_system_qubits,num_ancilla,time,segments,replication_seed,n_circuits,n_shots,peak_MB,runtime,exact_eig,most_likely_bs,est_energy_med,est_energy_mean,est_energy_std,est_energy_min,est_energy_max,estimation_error,alpha,max_theoretical_qdrift_error,counts
