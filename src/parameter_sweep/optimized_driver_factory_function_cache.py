@@ -149,11 +149,7 @@ class LocalResources:
     def backend(self):
         # pick this based on what you set below for workers/threads
         max_threads = int(os.environ.get("AER_MAX_THREADS", "4"))
-        sim = AerSimulator(method="matrix_product_state", device="CPU",
-                           backend_options={
-                               "max_parallel_threads": max_threads,
-                               "statevector_parallel_threshold": 20
-                           })
+        sim = AerSimulator(method="matrix_product_state", device="CPU", max_parallel_threads=max_threads)
         return sim
 
 _LOCAL = LocalResources()
