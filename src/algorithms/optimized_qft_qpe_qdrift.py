@@ -64,7 +64,7 @@ def make_pauli_gate_cache(H: SparsePauliOp,
 def build_template_circuit(n_anc: int, 
                            n_sys: int, 
                            placeholder_label: str, 
-                           eigenvalue_circuit: QuantumCircuit | None, 
+                           eigenvalue_circuit: Union[QuantumCircuit,  None], 
                            exponentiated_hamiltonian_terms_cache: Union[Dict[str, PauliEvolutionGate], PauliGateCache]) -> QuantumCircuit:
     """
     Static scaffold that already contains *all*  controlled placeholders:
