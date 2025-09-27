@@ -147,35 +147,44 @@ _LOCAL = LocalResources()
 # =========================================================================
 #   worker function – executed inside each worker process
 # =========================================================================
+
 def contains_non_native_gates(qc):
-    """Check if the circuit has gates that often trigger BasisTranslator panics."""
-    for instr, qargs, cargs in qc.data:
-        if isinstance(instr, UnitaryGate):
+    """Check if the circuit has gates likely to cause EquivalenceLibrary panic."""
+    for instr_obj in qc.data:
+        # instr_obj is a CircuitInstruction with attributes .operation, .qubits, .clbits
+        op = instr_obj.operation
+        if isinstance(op, UnitaryGate):
             return True
-        if instr.name.lower().startswith("diagonal"):
+        # For Diagonal instructions, check operation name
+        if op.name.lower().startswith("diagonal"):
             return True
     return False
 
 def expand_problematic_gates(qc, max_iters=4):
-    """Try to decompose away Unitary/Diagonal gates."""
+    """Decompose or rebuild UnitaryGate / DiagonalGate instructions."""
     new_qc = qc.copy()
     for _ in range(max_iters):
         if not contains_non_native_gates(new_qc):
             break
         new_qc = new_qc.decompose()
-    # last-resort: convert any remaining UnitaryGate to Operator-based instruction
-    rebuilt = new_qc.copy_empty_like()
-    for instr, qargs, cargs in new_qc.data:
-        if isinstance(instr, UnitaryGate):
-            mat = Operator(instr).data
+    # Now rebuild any leftover UnitaryGate as an instruction from Operator
+    # Use a new circuit of same qubit & classical structure
+    rebuilt = new_qc.copy_empty_like()  # creates same registers but no instructions
+    for instr_obj in new_qc.data:
+        op = instr_obj.operation
+        qargs = list(instr_obj.qubits)
+        cargs = list(instr_obj.clbits)
+        if isinstance(op, UnitaryGate):
+            mat = Operator(op).data
             inst = Operator(mat).to_instruction()
-            rebuilt.append(inst, [q.index for q in qargs])
+            rebuilt.append(inst, qargs, cargs)
         else:
-            rebuilt.append(instr, [q.index for q in qargs], cargs)
+            # Append the original operation
+            rebuilt.append(op, qargs, cargs)
     return rebuilt
 
 def safe_transpile_batch(batch_circuits, backend, **kwargs):
-    """Transpile circuits one-by-one to avoid BasisTranslator panics."""
+    """Transpile circuits one by one after pre-expanding unsafe gates."""
     transpiled = []
     for qc in batch_circuits:
         prepared = expand_problematic_gates(qc)
@@ -185,8 +194,6 @@ def safe_transpile_batch(batch_circuits, backend, **kwargs):
         else:
             transpiled.append(t)
     return transpiled
-
-
 
 @profile_memory_and_time #custom decorator that profiles memory and runtime
 def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
