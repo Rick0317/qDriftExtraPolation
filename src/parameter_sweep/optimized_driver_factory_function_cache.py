@@ -121,6 +121,7 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool, ket_0_as_eige
     eigenstate_index = np.argmin(eigvals.real) if ground_state else np.argmax(eigvals.real)
     eigenstate = eigvecs[:, eigenstate_index]
     eigenstate_circuit = prepare_eigenstate_circuit(eigenstate) if not ket_0_as_eigenstate else None
+    print(f"Eigenstate circuit; {eigenstate_circuit}")
     
     qc = build_template_circuit(
         n_anc=n_anc,
