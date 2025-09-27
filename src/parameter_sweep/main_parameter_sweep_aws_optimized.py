@@ -471,7 +471,9 @@ def run_simulation_worker(config: dict) -> Optional[QPEResult]:
             transpiled = transpile(
                 batch_circuits,
                 backend=_worker_simulator,
-                optimization_level=0  # Minimal optimization for MPS
+                optimization_level=0,
+                num_processes=1, 
+                approximation_degree=0 
             )
             
             # Execute batch
@@ -568,7 +570,7 @@ def main(verbose_export: bool = False, parallel: bool = True):
     }
     
     # Parameter grid
-    NUM_ANCILLA = [8]
+    NUM_ANCILLA = [12, 15]
     NUM_QDRIFT_SEGMENTS = [1]
     RANDOM_CIRCUITS_PER_DATAPOINT = [10, 100, 1000, 10000]
     SHOTS_PER_CIRCUIT = [1, 10, 100]
