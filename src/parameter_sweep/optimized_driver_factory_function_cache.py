@@ -79,7 +79,7 @@ REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data po
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
 TEST_ID = uuid4()
 BATCH_SIZE = 100  # Configurable batch size
-KET_0_AS_EIGENSTATE = False  # ignore everything else and initialize the circuits with ket 0 state
+KET_0_AS_EIGENSTATE = [False]  # ignore everything else and initialize the circuits with ket 0 state
 
 # ════════════════════════════════════════════════════════════════════════════
 #  # memoised, fork-safe factories of circuit templates and PauliEvolutionGates
@@ -163,7 +163,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
     shots        = experimental_conditions["shots"]
     total_time   = experimental_conditions["time"]
     trajectory_report_protocol = experimental_conditions["trajectory_report_protocol"]
-    ket_0_as_eigenstate = experimental_conditions["exceptionally stupid eigenstate"]
+    ket_0_as_eigenstate = experimental_conditions["exceptionally_stupid_eigenstate"]
 
     # ─── static info  ────
     H       = HAMILTONIANS_TO_TEST[ham_key]
@@ -267,7 +267,7 @@ def main(verbose_export = False, parallel = False) -> None:
                  shots            = g[6],
                  ground_state     = g[7],
                  trajectory_report_protocol = g[8],
-                 ket_0_as_aigenstate = g[9]
+                 exceptionally_stupid_eigenstate = g[9]
                  )
             for g in grid]
     
