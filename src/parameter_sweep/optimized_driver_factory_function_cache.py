@@ -2,20 +2,14 @@
 from __future__ import annotations
 from importlib import metadata
 from re import M
-import sys
-import pathlib
-import re
-
-from zmq import device
+import tracemalloc, time, psutil, threading, sys, csv, datetime, itertools, json, os, pathlib, statistics
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))  # add root to path
 from typing import Dict, List, Optional, Tuple, Callable, Sequence, NamedTuple
-from functools import wraps, cache, cached_property, partial
-import csv, datetime, itertools, json, os, pathlib, statistics, time
 from dataclasses import dataclass, asdict
 from multiprocessing import Pool, cpu_count
 from memory_profiler import memory_usage
-import tracemalloc, time, psutil, threading, time, os
 from uuid import uuid4
+from functools import cache, cached_property
 
 
 import numpy as np
@@ -53,7 +47,6 @@ class QPEResult:
     max_theoretical_qdrift_error: float
     peak_MB : float  # peak memory usage in MB
     runtime : float  # runtime in seconds
-    top10_py_allocs : str  # report from tracemalloc
     counts          : str  # json-encoded
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -61,7 +54,7 @@ class QPEResult:
 # ════════════════════════════════════════════════════════════════════════════
 NUM_SYSTEM_QUBITS  = 1
 ISING_J, ISING_G = 1.2, 1
-PLACEHOLDER = "_I_"
+PLACEHOLDER = "<PLACEHOLDER>_I_"
 
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     # "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZZZ", coeffs=np.pi / 4),
@@ -70,19 +63,16 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1),
 }
 
-NUM_ANCILLA  = [15, 20]  # number of ancilla qubits
-
-# chebyshev_nodes = np.array(chebyshev_nodes(10))
-# scaled_nodes_pos = 0.000001 + (0.1 - 0.000001) * chebyshev_nodes[:5]
+NUM_ANCILLA  = [8]  # number of ancilla qubits
 
 qpe_resolution_limits = calculate_minimum_evolution_time(hamiltonians=HAMILTONIANS_TO_TEST, m=min(NUM_ANCILLA))
 print(qpe_resolution_limits)
 t_min_global = max(qpe_resolution_limits.values())
 lower_bound = max(1e-10, t_min_global * 0.8)  # Don't go below 80% of t_min
-upper_bound = min(1e1, t_min_global * 400)    # Don't exceed 400× t_min
+upper_bound = min(1e1, t_min_global * 100)    # Don't exceed 100× t_min
 TIMES = np.logspace(np.log2(lower_bound), np.log2(upper_bound), base=2, num=12)
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [100, 1000, 10000]
+RANDOM_CIRCUITS_PER_DATAPOINT = [10, 100, 1000, 10000]
 SHOTS_PER_CIRCUIT = [1, 10, 100]
 REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
@@ -153,7 +143,6 @@ class LocalResources:
         return sim
 
 _LOCAL = LocalResources()
-
 
 # =========================================================================
 #   worker function – executed inside each worker process
@@ -244,14 +233,13 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
         est_energy_std   = e_std,
         estimation_error = error,
         alpha            = sum(abs(H.coeffs)),
-        counts           = json.dumps(batch_merged_counts, sort_keys=True),
-        top10_py_allocs  = "",      # overwritten by @profile_memory_and_time
+        counts           = json.dumps(batch_merged_counts, sort_keys=True)
     )
 
 # =========================================================================
 # driving script – build the grid and launch a Pool
 # =========================================================================
-def main(verbose_export = False, parallel = True) -> None:
+def main(verbose_export = False, parallel = False) -> None:
     # full Cartesian product of all sweep parameters
     grid = itertools.product(
         HAMILTONIANS_TO_TEST.keys(),
