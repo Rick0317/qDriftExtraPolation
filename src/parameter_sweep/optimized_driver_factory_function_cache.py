@@ -15,9 +15,9 @@ from functools import cache, cached_property
 import numpy as np
 from qiskit_aer import AerSimulator
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import SparsePauliOp
+from qiskit.quantum_info import SparsePauliOp, Operator
 from qiskit import transpile
-from qiskit.circuit.library import PauliEvolutionGate
+from qiskit.circuit.library import PauliEvolutionGate, UnitaryGate
 from qiskit.circuit import Parameter
 
 from src.algorithms.optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, make_pauli_gate_cache, build_template_circuit, build_qdrift_trajectory
@@ -147,6 +147,46 @@ _LOCAL = LocalResources()
 # =========================================================================
 #   worker function – executed inside each worker process
 # =========================================================================
+def contains_non_native_gates(qc):
+    """Check if the circuit has gates that often trigger BasisTranslator panics."""
+    for instr, qargs, cargs in qc.data:
+        if isinstance(instr, UnitaryGate):
+            return True
+        if instr.name.lower().startswith("diagonal"):
+            return True
+    return False
+
+def expand_problematic_gates(qc, max_iters=4):
+    """Try to decompose away Unitary/Diagonal gates."""
+    new_qc = qc.copy()
+    for _ in range(max_iters):
+        if not contains_non_native_gates(new_qc):
+            break
+        new_qc = new_qc.decompose()
+    # last-resort: convert any remaining UnitaryGate to Operator-based instruction
+    rebuilt = new_qc.copy_empty_like()
+    for instr, qargs, cargs in new_qc.data:
+        if isinstance(instr, UnitaryGate):
+            mat = Operator(instr).data
+            inst = Operator(mat).to_instruction()
+            rebuilt.append(inst, [q.index for q in qargs])
+        else:
+            rebuilt.append(instr, [q.index for q in qargs], cargs)
+    return rebuilt
+
+def safe_transpile_batch(batch_circuits, backend, **kwargs):
+    """Transpile circuits one-by-one to avoid BasisTranslator panics."""
+    transpiled = []
+    for qc in batch_circuits:
+        prepared = expand_problematic_gates(qc)
+        t = transpile(prepared, backend=backend, **kwargs)
+        if isinstance(t, list):
+            transpiled.extend(t)
+        else:
+            transpiled.append(t)
+    return transpiled
+
+
 
 @profile_memory_and_time #custom decorator that profiles memory and runtime
 def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
@@ -194,7 +234,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
             batch_circuits.append(qc)
         
         # Transpile the entire batch at once for efficiency
-        transpiled_batch = transpile( batch_circuits, backend=_LOCAL.backend, optimization_level=0, num_processes=1, approximation_degree=0)
+        transpiled_batch = safe_transpile_batch( batch_circuits, backend=_LOCAL.backend, optimization_level=0, num_processes=1, approximation_degree=0)
         
         # Execute the entire batch at once
         seeds_for_batch = [ss.generate_state(1)[0] for ss in batch_ss]
