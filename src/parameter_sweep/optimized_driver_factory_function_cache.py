@@ -60,7 +60,8 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     # "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZZZ", coeffs=np.pi / 4),
     # "H2_minimal_basis": H_H2,
     # "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.7, g=ISING_G * 0.7) 
-    "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1),
+    # "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1),
+    " diagonal 1 qubit": SparsePauliOp.from_list([("I", 0.1), ("Z", -0.2), ("I", 0.4), ("Z", 0.3)])
 }
 
 NUM_ANCILLA  = [8]  # number of ancilla qubits
@@ -79,7 +80,7 @@ REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data po
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
 TEST_ID = uuid4()
 BATCH_SIZE = 100  # Configurable batch size
-KET_0_AS_EIGENSTATE = [False]  # ignore everything else and initialize the circuits with ket 0 state
+KET_0_AS_EIGENSTATE = [True]  # ignore everything else and initialize the circuits with ket 0 state
 
 # ════════════════════════════════════════════════════════════════════════════
 #  # memoised, fork-safe factories of circuit templates and PauliEvolutionGates
