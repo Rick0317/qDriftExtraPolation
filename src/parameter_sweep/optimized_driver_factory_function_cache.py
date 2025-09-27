@@ -64,7 +64,7 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     " diagonal 1 qubit": SparsePauliOp.from_list([("I", 0.1), ("Z", -0.2), ("I", 0.4), ("Z", 0.3)])
 }
 
-NUM_ANCILLA  = [12]  # number of ancilla qubits
+NUM_ANCILLA  = [15]  # number of ancilla qubits
 
 qpe_resolution_limits = calculate_minimum_evolution_time(hamiltonians=HAMILTONIANS_TO_TEST, m=min(NUM_ANCILLA))
 print(qpe_resolution_limits)
@@ -121,7 +121,6 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool, ket_0_as_eige
     eigenstate_index = np.argmin(eigvals.real) if ground_state else np.argmax(eigvals.real)
     eigenstate = eigvecs[:, eigenstate_index]
     eigenstate_circuit = prepare_eigenstate_circuit(eigenstate) if not ket_0_as_eigenstate else None
-    print(f"Eigenstate circuit; {eigenstate_circuit}")
     
     qc = build_template_circuit(
         n_anc=n_anc,
@@ -302,7 +301,7 @@ def main(verbose_export = False, parallel = False) -> None:
     if parallel:
         # run the sweep in parallel
         n_proc = min(os.cpu_count() or 1, 16)
-        with Pool(processes=n_proc - 2) as pool:
+        with Pool(processes=n_proc // 2) as pool:
             print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
             for result in pool.imap_unordered(run_simulation, cfgs):
                 append_csv(csv_path, fieldnames, result)
