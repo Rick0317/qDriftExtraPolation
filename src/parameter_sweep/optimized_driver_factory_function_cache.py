@@ -15,9 +15,9 @@ from functools import cache, cached_property
 import numpy as np
 from qiskit_aer import AerSimulator
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import SparsePauliOp, Operator
+from qiskit.quantum_info import SparsePauliOp
 from qiskit import transpile
-from qiskit.circuit.library import PauliEvolutionGate, UnitaryGate
+from qiskit.circuit.library import PauliEvolutionGate
 from qiskit.circuit import Parameter
 
 from src.algorithms.optimized_qft_qpe_qdrift import prepare_eigenstate_circuit, make_pauli_gate_cache, build_template_circuit, build_qdrift_trajectory
@@ -110,7 +110,7 @@ def pauli_cache(ham_key: str) -> PauliGateCache:
     )
 
 @cache
-def template_circuit(ham_key: str, n_anc: int, ground_state: bool) -> QuantumCircuit:
+def template_circuit(ham_key: str, n_anc: int, ground_state: bool, ket_0_as_eigenstate: bool) -> QuantumCircuit:
     """
     Heavy-weight template circuit cached for reuse.
     """
@@ -118,7 +118,7 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool) -> QuantumCir
     eigvals, eigvecs = np.linalg.eig(H.to_matrix())
     eigenstate_index = np.argmin(eigvals.real) if ground_state else np.argmax(eigvals.real)
     eigenstate = eigvecs[:, eigenstate_index]
-    eigenstate_circuit = prepare_eigenstate_circuit(eigenstate)
+    eigenstate_circuit = prepare_eigenstate_circuit(eigenstate) if not ket_0_as_eigenstate else 
     
     qc = build_template_circuit(
         n_anc=n_anc,
@@ -148,52 +148,6 @@ _LOCAL = LocalResources()
 #   worker function – executed inside each worker process
 # =========================================================================
 
-def contains_non_native_gates(qc):
-    """Check if the circuit has gates likely to cause EquivalenceLibrary panic."""
-    for instr_obj in qc.data:
-        # instr_obj is a CircuitInstruction with attributes .operation, .qubits, .clbits
-        op = instr_obj.operation
-        if isinstance(op, UnitaryGate):
-            return True
-        # For Diagonal instructions, check operation name
-        if op.name.lower().startswith("diagonal"):
-            return True
-    return False
-
-def expand_problematic_gates(qc, max_iters=4):
-    """Decompose or rebuild UnitaryGate / DiagonalGate instructions."""
-    new_qc = qc.copy()
-    for _ in range(max_iters):
-        if not contains_non_native_gates(new_qc):
-            break
-        new_qc = new_qc.decompose()
-    # Now rebuild any leftover UnitaryGate as an instruction from Operator
-    # Use a new circuit of same qubit & classical structure
-    rebuilt = new_qc.copy_empty_like()  # creates same registers but no instructions
-    for instr_obj in new_qc.data:
-        op = instr_obj.operation
-        qargs = list(instr_obj.qubits)
-        cargs = list(instr_obj.clbits)
-        if isinstance(op, UnitaryGate):
-            mat = Operator(op).data
-            inst = Operator(mat).to_instruction()
-            rebuilt.append(inst, qargs, cargs)
-        else:
-            # Append the original operation
-            rebuilt.append(op, qargs, cargs)
-    return rebuilt
-
-def safe_transpile_batch(batch_circuits, backend, **kwargs):
-    """Transpile circuits one by one after pre-expanding unsafe gates."""
-    transpiled = []
-    for qc in batch_circuits:
-        prepared = expand_problematic_gates(qc)
-        t = transpile(prepared, backend=backend, **kwargs)
-        if isinstance(t, list):
-            transpiled.extend(t)
-        else:
-            transpiled.append(t)
-    return transpiled
 
 @profile_memory_and_time #custom decorator that profiles memory and runtime
 def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
@@ -241,7 +195,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
             batch_circuits.append(qc)
         
         # Transpile the entire batch at once for efficiency
-        transpiled_batch = safe_transpile_batch( batch_circuits, backend=_LOCAL.backend, optimization_level=0, num_processes=1, approximation_degree=0)
+        transpiled_batch = transpile( batch_circuits, backend=_LOCAL.backend, optimization_level=0, num_processes=1, approximation_degree=0)
         
         # Execute the entire batch at once
         seeds_for_batch = [ss.generate_state(1)[0] for ss in batch_ss]

@@ -71,7 +71,7 @@ def build_template_circuit(n_anc: int,
     layer k gets 2**k placeholders so the stochastic product can be realised.
     """
     qc = QuantumCircuit(n_anc + n_sys, n_anc, name="qDRIFT-QPE")
-    qc.append(eigenvalue_circuit, range(n_anc, n_anc+n_sys))
+    qc.compose(eigenvalue_circuit, qubits=range(n_anc, n_anc+n_sys), inplace=True)
     qc.h(range(n_anc))
 
     # --- allocate the necessary number of placeholders -----------------
