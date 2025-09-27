@@ -194,7 +194,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
             batch_circuits.append(qc)
         
         # Transpile the entire batch at once for efficiency
-        transpiled_batch = transpile( batch_circuits, backend=_LOCAL.backend, optimization_level=0)
+        transpiled_batch = transpile( batch_circuits, backend=_LOCAL.backend, optimization_level=0, num_processes=1, approximation_degree=0)
         
         # Execute the entire batch at once
         seeds_for_batch = [ss.generate_state(1)[0] for ss in batch_ss]

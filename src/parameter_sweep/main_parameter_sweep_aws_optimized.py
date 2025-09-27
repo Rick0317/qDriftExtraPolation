@@ -570,7 +570,7 @@ def main(verbose_export: bool = False, parallel: bool = True):
     }
     
     # Parameter grid
-    NUM_ANCILLA = [12, 15]
+    NUM_ANCILLA = [13, 15]
     NUM_QDRIFT_SEGMENTS = [1]
     RANDOM_CIRCUITS_PER_DATAPOINT = [10, 100, 1000, 10000]
     SHOTS_PER_CIRCUIT = [1, 10, 100]
