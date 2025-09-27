@@ -79,6 +79,7 @@ REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data po
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
 TEST_ID = uuid4()
 BATCH_SIZE = 100  # Configurable batch size
+KET_0_AS_EIGENSTATE = False  # ignore everything else and initialize the circuits with ket 0 state
 
 # ════════════════════════════════════════════════════════════════════════════
 #  # memoised, fork-safe factories of circuit templates and PauliEvolutionGates
@@ -118,7 +119,7 @@ def template_circuit(ham_key: str, n_anc: int, ground_state: bool, ket_0_as_eige
     eigvals, eigvecs = np.linalg.eig(H.to_matrix())
     eigenstate_index = np.argmin(eigvals.real) if ground_state else np.argmax(eigvals.real)
     eigenstate = eigvecs[:, eigenstate_index]
-    eigenstate_circuit = prepare_eigenstate_circuit(eigenstate) if not ket_0_as_eigenstate else 
+    eigenstate_circuit = prepare_eigenstate_circuit(eigenstate) if not ket_0_as_eigenstate else None
     
     qc = build_template_circuit(
         n_anc=n_anc,
@@ -162,13 +163,14 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
     shots        = experimental_conditions["shots"]
     total_time   = experimental_conditions["time"]
     trajectory_report_protocol = experimental_conditions["trajectory_report_protocol"]
+    ket_0_as_eigenstate = experimental_conditions["exceptionally stupid eigenstate"]
 
     # ─── static info  ────
     H       = HAMILTONIANS_TO_TEST[ham_key]
     eigvals = np.linalg.eigvals(H.to_matrix()).real
     exact_eig = float(np.min(eigvals) if ground_state else np.max(eigvals))
     cache = pauli_cache(ham_key)
-    template_circuit_cached = template_circuit(ham_key=ham_key, n_anc=n_anc, ground_state=ground_state)
+    template_circuit_cached = template_circuit(ham_key=ham_key, n_anc=n_anc, ground_state=ground_state, ket_0_as_eigenstate=ket_0_as_eigenstate)
 
     # ─── random-seed hierarchy ───────────────────────────────────
     root_ss  = np.random.SeedSequence(experimental_conditions["replication_seed"]) # ss stands for SeedSequence
@@ -251,7 +253,8 @@ def main(verbose_export = False, parallel = False) -> None:
         RANDOM_CIRCUITS_PER_DATAPOINT,
         SHOTS_PER_CIRCUIT,
         ESTIMATE_GROUND_STATE,         # whether to estimate the ground state,
-        REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT
+        REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT,
+        KET_0_AS_EIGENSTATE
     )
 
     # serialise each tuple into a plain dict for _run
@@ -263,7 +266,8 @@ def main(verbose_export = False, parallel = False) -> None:
                  circuits         = g[5],
                  shots            = g[6],
                  ground_state     = g[7],
-                 trajectory_report_protocol = g[8]
+                 trajectory_report_protocol = g[8],
+                 ket_0_as_aigenstate = g[9]
                  )
             for g in grid]
     

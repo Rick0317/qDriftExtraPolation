@@ -64,14 +64,15 @@ def make_pauli_gate_cache(H: SparsePauliOp,
 def build_template_circuit(n_anc: int, 
                            n_sys: int, 
                            placeholder_label: str, 
-                           eigenvalue_circuit: QuantumCircuit, 
+                           eigenvalue_circuit: QuantumCircuit | None, 
                            exponentiated_hamiltonian_terms_cache: Union[Dict[str, PauliEvolutionGate], PauliGateCache]) -> QuantumCircuit:
     """
     Static scaffold that already contains *all*  controlled placeholders:
     layer k gets 2**k placeholders so the stochastic product can be realised.
     """
     qc = QuantumCircuit(n_anc + n_sys, n_anc, name="qDRIFT-QPE")
-    qc.compose(eigenvalue_circuit, qubits=range(n_anc, n_anc+n_sys), inplace=True)
+    if prepare_eigenstate_circuit is not None:
+        qc.compose(eigenvalue_circuit, qubits=range(n_anc, n_anc+n_sys), inplace=True)
     qc.h(range(n_anc))
 
     # --- allocate the necessary number of placeholders -----------------
