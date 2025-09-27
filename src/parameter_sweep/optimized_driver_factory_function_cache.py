@@ -64,7 +64,7 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     " diagonal 1 qubit": SparsePauliOp.from_list([("I", 0.1), ("Z", -0.2), ("I", 0.4), ("Z", 0.3)])
 }
 
-NUM_ANCILLA  = [8]  # number of ancilla qubits
+NUM_ANCILLA  = [12]  # number of ancilla qubits
 
 qpe_resolution_limits = calculate_minimum_evolution_time(hamiltonians=HAMILTONIANS_TO_TEST, m=min(NUM_ANCILLA))
 print(qpe_resolution_limits)
