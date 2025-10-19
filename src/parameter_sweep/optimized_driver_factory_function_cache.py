@@ -11,6 +11,9 @@ from memory_profiler import memory_usage
 from uuid import uuid4
 from functools import cache, cached_property
 
+# Configure Qiskit parallelism before any quantum imports
+os.environ['QISKIT_PARALLEL'] = 'TRUE'
+os.environ['QISKIT_NUM_PROCS'] = str(os.cpu_count() or 8)
 
 import numpy as np
 from qiskit_aer import AerSimulator
@@ -63,7 +66,7 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1)
 }
 
-NUM_ANCILLA  = [14, 16]  # number of ancilla qubits
+NUM_ANCILLA  = [16]  # number of ancilla qubits
 qpe_resolution_limits = calculate_minimum_evolution_time(
     hamiltonians=HAMILTONIANS_TO_TEST, 
     m=min(NUM_ANCILLA)
@@ -166,7 +169,7 @@ class LocalResources:
 
     @cached_property
     def backend(self):
-        sim = AerSimulator(method="matrix_product_state", device="CPU")
+        sim = AerSimulator(method="statevector", device="CPU")
         return sim
 
 _LOCAL = LocalResources()
@@ -332,7 +335,6 @@ def main(verbose_export = False, parallel = False) -> None:
             for result in pool.imap_unordered(run_simulation, cfgs):
                 append_csv(csv_path, fieldnames, result)
     else:
-        print(f"Running {len(cfgs)} configurations sequentially.")
         for cfg in cfgs:
             result = run_simulation(cfg)
             append_csv(csv_path, fieldnames, result)
