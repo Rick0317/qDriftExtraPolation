@@ -30,7 +30,52 @@ from src.utils.memory_profiling_utils import *
 from src.utils.qpe_postprocessing_utils import batch_process_counts, int_to_bitstring, analyse_counts_optimized
 from src.utils.utils_io import init_csv, write_metadata, append_csv
 
+def get_completed_configs(csv_path: pathlib.Path) -> set:
+    """
+    Read existing CSV and return a set of completed configuration tuples.
+    Each tuple represents a unique experiment configuration.
+    """
+    if not csv_path.exists():
+        print("No existing CSV found - starting fresh")
+        return set()
+    
+    completed = set()
+    try:
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Create a tuple of the key parameters that define a unique experiment
+                config_tuple = (
+                    row['ham'],
+                    int(row['num_ancilla']),
+                    float(row['time']),
+                    int(row['segments']),
+                    int(row['replication_seed']),
+                    int(row['n_circuits']),
+                    int(row['n_shots'])
+                    # Note: ground_state and other flags aren't in CSV, 
+                    # but are implied by exact_eig value
+                )
+                completed.add(config_tuple)
+        print(f"Found {len(completed)} completed configurations in existing CSV")
+    except Exception as e:
+        print(f"Warning: Could not read existing CSV: {e}")
+        return set()
+    
+    return completed
 
+
+def config_to_tuple(cfg: dict) -> tuple:
+    """Convert a config dict to a tuple for comparison with completed configs."""
+    return (
+        cfg['ham'],
+        cfg['anc'],
+        cfg['time'],
+        cfg['segments'],
+        cfg['replication_seed'],
+        cfg['circuits'],
+        cfg['shots']
+    )
 
 def upload_to_s3_incremental(filepath: pathlib.Path):
     """Upload a file to S3 without blocking the simulation."""
@@ -119,7 +164,7 @@ print(f"Min time / t_min ratio: {TIMES.min() / t_min_global:.3f}")
 print(f"Max time / t_min ratio: {TIMES.max() / t_min_global:.3f}")
 
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [1, 100, 1000, 10000]
+RANDOM_CIRCUITS_PER_DATAPOINT = [1, 100, 1000]
 SHOTS_PER_CIRCUIT = [1, 10, 100, 1000]
 REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
@@ -321,7 +366,11 @@ def main(verbose_export = False, parallel = False) -> None:
     basename = f"qdrift_qpe_fc_parameter_sweep_{datetime.datetime.today():%Y-%m-%d}"
     metadata_path = pathlib.Path(f"{basename}.json")
     csv_path = pathlib.Path(f"{basename}.csv")
-
+    # Check for already completed configurations
+    completed = get_completed_configs(csv_path)
+    
+    # Filter out completed configurations
+    cfgs = [cfg for cfg in cfgs if config_to_tuple(cfg) not in completed]
     # dump metadata JSON once (human-readable, reproducible)
     write_metadata(
         path=metadata_path,
