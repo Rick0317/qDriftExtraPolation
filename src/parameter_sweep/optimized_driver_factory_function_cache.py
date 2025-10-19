@@ -59,28 +59,55 @@ PLACEHOLDER = "<PLACEHOLDER>_I_"
 HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     # "exact_ham_exact_qdritf" : SparsePauliOp(data="ZZZZ", coeffs=np.pi / 4),
     # "H2_minimal_basis": H_H2,
-    # "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.7, g=ISING_G * 0.7) 
-    # "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1),
-    " diagonal 1 qubit": SparsePauliOp.from_list([("I", 0.1), ("Z", -0.2), ("I", 0.4), ("Z", 0.3)])
+    # "H_ising" : generate_ising_hamiltonian(num_qubits=NUM_SYSTEM_QUBITS, J=ISING_J * 0.7, g=ISING_G * 0.7),
+    "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1)
 }
 
-NUM_ANCILLA  = [15]  # number of ancilla qubits
-
-qpe_resolution_limits = calculate_minimum_evolution_time(hamiltonians=HAMILTONIANS_TO_TEST, m=min(NUM_ANCILLA))
+NUM_ANCILLA  = [14, 16]  # number of ancilla qubits
+qpe_resolution_limits = calculate_minimum_evolution_time(
+    hamiltonians=HAMILTONIANS_TO_TEST, 
+    m=min(NUM_ANCILLA)
+)
 print(qpe_resolution_limits)
+
 t_min_global = max(qpe_resolution_limits.values())
-lower_bound = max(1e-10, t_min_global * 0.8)  # Don't go below 80% of t_min
-upper_bound = min(1e1, t_min_global * 100)    # Don't exceed 100× t_min
-TIMES = np.logspace(np.log2(lower_bound), np.log2(upper_bound), base=2, num=12)
+
+# KEY IMPROVEMENT: Use much smaller safety margin (5-10% instead of 50%)
+safety_margin = 1.05  # Only 5% above detection limit
+lower_bound = max(1e-10, t_min_global * safety_margin)
+
+# Scale upper bound from lower bound for better control
+upper_bound = lower_bound * 100  # 2 orders of magnitude span
+
+# Generate Chebyshev nodes
+num_nodes = 8
+nodes_normalized = np.array(chebyshev_nodes(num_nodes))  # Returns nodes in (-1, 1)
+
+# Map from (-1, 1) to [lower_bound, upper_bound]
+TIMES = (nodes_normalized + 1) / 2 * (upper_bound - lower_bound) + lower_bound
+
+# Validation: ensure all nodes are above detection limit
+assert np.all(TIMES >= t_min_global), \
+    f"ERROR: Some nodes below detection limit!\n" \
+    f"  Min node: {TIMES.min():.3e}\n" \
+    f"  Detection limit: {t_min_global:.3e}"
+
+print(f"Times: {TIMES}")
+print(f"lower_bound: {lower_bound:.3e} ({safety_margin}× t_min)")
+print(f"upper_bound: {upper_bound:.3e}")
+print(f"t_min_global: {t_min_global:.3e}")
+print(f"Min time / t_min ratio: {TIMES.min() / t_min_global:.3f}")
+print(f"Max time / t_min ratio: {TIMES.max() / t_min_global:.3f}")
+
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [10, 100, 1000, 10000]
-SHOTS_PER_CIRCUIT = [1, 10, 100]
+RANDOM_CIRCUITS_PER_DATAPOINT = [1, 100, 1000, 10000]
+SHOTS_PER_CIRCUIT = [1, 10, 100, 1000]
 REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
 TEST_ID = uuid4()
 BATCH_SIZE = 100  # Configurable batch size
-KET_0_AS_EIGENSTATE = [True]  # ignore everything else and initialize the circuits with ket 0 state
+KET_0_AS_EIGENSTATE = [False]  # ignore everything else and initialize the circuits with ket 0 state
 
 # ════════════════════════════════════════════════════════════════════════════
 #  # memoised, fork-safe factories of circuit templates and PauliEvolutionGates
@@ -139,9 +166,7 @@ class LocalResources:
 
     @cached_property
     def backend(self):
-        # pick this based on what you set below for workers/threads
-        max_threads = int(os.environ.get("AER_MAX_THREADS", "4"))
-        sim = AerSimulator(method="matrix_product_state", device="CPU", max_parallel_threads=max_threads)
+        sim = AerSimulator(method="matrix_product_state", device="CPU")
         return sim
 
 _LOCAL = LocalResources()
@@ -176,13 +201,13 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
     # ─── random-seed hierarchy ───────────────────────────────────
     root_ss  = np.random.SeedSequence(experimental_conditions["replication_seed"]) # ss stands for SeedSequence
     child_ss = root_ss.spawn(n_circuits)  # one child seed per random circuit
-    
+    all_counts_from_all_batches: List[dict[str, int]] = []
+
     for batch_start in range(0, n_circuits, BATCH_SIZE):
         batch_end = min(batch_start + BATCH_SIZE, n_circuits)
         batch_ss = child_ss[batch_start:batch_end]
         batch_circuits: List[QuantumCircuit] = []
-        all_counts_from_all_batches: List[dict[str, int]] = []
-
+        
         for ss in batch_ss:
             rng   = np.random.default_rng(ss)
             qc    = build_qdrift_trajectory(n_anc=n_anc,
@@ -198,13 +223,14 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
             batch_circuits.append(qc)
         
         # Transpile the entire batch at once for efficiency
-        transpiled_batch = transpile( batch_circuits, backend=_LOCAL.backend, optimization_level=0, num_processes=1, approximation_degree=0)
+        transpiled_batch = transpile(batch_circuits, backend=_LOCAL.backend)
         
         # Execute the entire batch at once
         seeds_for_batch = [ss.generate_state(1)[0] for ss in batch_ss]
         job = _LOCAL.backend.run(transpiled_batch, shots=shots, seed_simulation=seeds_for_batch)
         results = job.result()
         all_counts_from_all_batches.extend([results.get_counts(i) for i in range(len(transpiled_batch))])
+        print(f"All counts from all batches: {len(all_counts_from_all_batches)}")
 
     batch_merged_counts = batch_process_counts(counts_list=all_counts_from_all_batches,
                                                shots_per_circuit=shots,
@@ -301,7 +327,7 @@ def main(verbose_export = False, parallel = False) -> None:
     if parallel:
         # run the sweep in parallel
         n_proc = min(os.cpu_count() or 1, 16)
-        with Pool(processes=n_proc // 2) as pool:
+        with Pool(processes=n_proc // 2 - 4) as pool:
             print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
             for result in pool.imap_unordered(run_simulation, cfgs):
                 append_csv(csv_path, fieldnames, result)
