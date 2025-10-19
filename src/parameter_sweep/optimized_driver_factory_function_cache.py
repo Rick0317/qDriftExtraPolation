@@ -30,6 +30,22 @@ from src.utils.memory_profiling_utils import *
 from src.utils.qpe_postprocessing_utils import batch_process_counts, int_to_bitstring, analyse_counts_optimized
 from src.utils.utils_io import init_csv, write_metadata, append_csv
 
+
+
+def upload_to_s3_incremental(filepath: pathlib.Path):
+    """Upload a file to S3 without blocking the simulation."""
+    import subprocess
+    try:
+        subprocess.run(
+            ['python3', '/home/ec2-user/s3_upload.py', str(filepath)],
+            check=True,
+            timeout=30,  # Prevent hanging
+            capture_output=True
+        )
+        print(f"✓ Uploaded {filepath.name} to S3")
+    except Exception as e:
+        print(f"✗ S3 upload failed (continuing simulation): {e}")
+
 @dataclass
 class QPEResult:
     ham : str
@@ -332,12 +348,31 @@ def main(verbose_export = False, parallel = False) -> None:
         n_proc = min(os.cpu_count() or 1, 16)
         with Pool(processes=n_proc // 2 - 4) as pool:
             print(f"Running {len(cfgs)} configurations in parallel on {pool._processes} workers.")
+            result_count = 0
             for result in pool.imap_unordered(run_simulation, cfgs):
                 append_csv(csv_path, fieldnames, result)
+                result_count += 1
+                
+                # Upload every 5 datapoints (adjust as needed)
+                if result_count % 5 == 0:
+                    upload_to_s3_incremental(csv_path)
+                    upload_to_s3_incremental(metadata_path)
+                    print(f"Progress: {result_count}/{len(cfgs)} datapoints completed")
     else:
-        for cfg in cfgs:
+        for i, cfg in enumerate(cfgs):
             result = run_simulation(cfg)
             append_csv(csv_path, fieldnames, result)
+
+            # Upload every 5 datapoints
+            if (i + 1) % 5 == 0:
+                upload_to_s3_incremental(csv_path)
+                upload_to_s3_incremental(metadata_path)
+                print(f"Progress: {i+1}/{len(cfgs)} datapoints completed")
+
+    # Final upload at the end
+    upload_to_s3_incremental(csv_path)
+    upload_to_s3_incremental(metadata_path)
+    print("Simulation complete! All results uploaded to S3.")
 # entry-point
 if __name__ == "__main__":
     main()
