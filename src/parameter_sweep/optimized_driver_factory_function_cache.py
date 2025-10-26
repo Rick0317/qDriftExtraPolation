@@ -12,8 +12,8 @@ from uuid import uuid4
 from functools import cache, cached_property
 
 # Configure Qiskit parallelism before any quantum imports
-os.environ['QISKIT_PARALLEL'] = 'TRUE'
-os.environ['QISKIT_NUM_PROCS'] = str(os.cpu_count() or 8)
+#os.environ['QISKIT_PARALLEL'] = 'TRUE'
+#os.environ['QISKIT_NUM_PROCS'] = str(os.cpu_count() or 8)
 
 import numpy as np
 from qiskit_aer import AerSimulator
@@ -127,7 +127,7 @@ HAMILTONIANS_TO_TEST: dict[str, SparsePauliOp] = {
     "1 qubit test": SparsePauliOp.from_list([("X", 0.2), ("Z", 0.5), ("I", 0.3)], num_qubits=1)
 }
 
-NUM_ANCILLA  = [16]  # number of ancilla qubits
+NUM_ANCILLA  = [13]  # number of ancilla qubits
 qpe_resolution_limits = calculate_minimum_evolution_time(
     hamiltonians=HAMILTONIANS_TO_TEST, 
     m=min(NUM_ANCILLA)
@@ -137,11 +137,11 @@ print(qpe_resolution_limits)
 t_min_global = max(qpe_resolution_limits.values())
 
 # KEY IMPROVEMENT: Use much smaller safety margin (5-10% instead of 50%)
-safety_margin = 1.05  # Only 5% above detection limit
+safety_margin = 1.01  # Only 1% above detection limit
 lower_bound = max(1e-10, t_min_global * safety_margin)
 
 # Scale upper bound from lower bound for better control
-upper_bound = lower_bound * 100  # 2 orders of magnitude span
+upper_bound = lower_bound * 60  # 2 orders of magnitude span
 
 # Generate Chebyshev nodes
 num_nodes = 8
@@ -164,8 +164,8 @@ print(f"Min time / t_min ratio: {TIMES.min() / t_min_global:.3f}")
 print(f"Max time / t_min ratio: {TIMES.max() / t_min_global:.3f}")
 
 NUM_QDRIFT_SEGMENTS_PER_CHANNEL_SAMPLE  = [1]
-RANDOM_CIRCUITS_PER_DATAPOINT = [1, 100, 1000]
-SHOTS_PER_CIRCUIT = [1, 10, 100, 1000]
+RANDOM_CIRCUITS_PER_DATAPOINT = [1000]
+SHOTS_PER_CIRCUIT = [10]
 REPORT_PROTOCOL_RESULTS_FROM_ANY_RANDOM_CIRCUIT = [{"group": True, "group_by": "median"}]
 REPLICATION_SEEDS = [42] # the same seed is used for all circuits in one data point. if more than 1 seed is given, the number of circuits is multiplied by the number of seeds.
 ESTIMATE_GROUND_STATE = [False]  # whether to estimate the smallest eigenvalue (ground state). If False we pick the largest eigenvalue (excited state).
@@ -230,7 +230,7 @@ class LocalResources:
 
     @cached_property
     def backend(self):
-        sim = AerSimulator(method="statevector", device="CPU")
+        sim = AerSimulator(method="matrix_product_state", device="CPU")
         return sim
 
 _LOCAL = LocalResources()
@@ -333,7 +333,7 @@ def run_simulation(experimental_conditions: dict[str, object]) -> QPEResult:
 # =========================================================================
 # driving script – build the grid and launch a Pool
 # =========================================================================
-def main(verbose_export = False, parallel = False) -> None:
+def main(verbose_export = False, parallel = True) -> None:
     # full Cartesian product of all sweep parameters
     grid = itertools.product(
         HAMILTONIANS_TO_TEST.keys(),
@@ -401,9 +401,9 @@ def main(verbose_export = False, parallel = False) -> None:
             for result in pool.imap_unordered(run_simulation, cfgs):
                 append_csv(csv_path, fieldnames, result)
                 result_count += 1
-                
-                # Upload every 5 datapoints (adjust as needed)
-                if result_count % 5 == 0:
+
+                # Upload every 10 datapoints (adjust as needed)
+                if result_count % 10 == 0:
                     upload_to_s3_incremental(csv_path)
                     upload_to_s3_incremental(metadata_path)
                     print(f"Progress: {result_count}/{len(cfgs)} datapoints completed")

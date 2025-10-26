@@ -1,0 +1,56 @@
+{
+  "generated_utc": "2025-10-22T05:26:36Z",
+  "git_commit": "456f80c23964f480eaac032f9c1b5b93d4670162",
+  "metadata": {
+    "num_configs": 8,
+    "static_parameters": {
+      "Random_seed(s)": [
+        42
+      ],
+      "num_system_qubits": 1
+    },
+    "sweep_space": {
+      "Hamiltonians": [
+        {
+          "coeffs": "[0.2+0.j 0.5+0.j 0.3+0.j]",
+          "eigenvalue to estimate": [
+            0.8385164807134509,
+            -0.23851648071345044
+          ],
+          "paulis": [
+            "X",
+            "Z",
+            "I"
+          ],
+          "type": "1 qubit test"
+        }
+      ],
+      "calculate_ground_state": [
+        false
+      ],
+      "num_ancilla": [
+        13
+      ],
+      "num_independent_stochastic_circuits_per_datapoint": [
+        1000
+      ],
+      "num_qdrift_segments_per_qdrift_channel_invocation": [
+        1
+      ],
+      "num_shots_per_circuit": [
+        10
+      ],
+      "t": [
+        0.6632164139084109,
+        0.6140629872108437,
+        0.5232392974534915,
+        0.4045724280831133,
+        0.27612833424349936,
+        0.15746146487312107,
+        0.06663777511576872,
+        0.017484348418201644
+      ]
+    }
+  },
+  "test_id": "4ce61b53-4676-4f5c-a297-7b6a25e9f60f"
+}
